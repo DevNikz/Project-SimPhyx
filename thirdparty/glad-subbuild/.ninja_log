@@ -1,0 +1,21 @@
+# ninja log v6
+4	58	8020996226886469	glad-populate-prefix/src/glad-populate-stamp/glad-populate-mkdir	972db46bcee05555
+4	58	8020996226886469	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-mkdir	972db46bcee05555
+59	3220	8020996258503520	glad-populate-prefix/src/glad-populate-stamp/glad-populate-download	9e72377a7c11cd34
+59	3220	8020996258503520	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-download	9e72377a7c11cd34
+3221	3362	8020996258563062	glad-populate-prefix/src/glad-populate-stamp/glad-populate-update	39e99e3b36655a57
+3221	3362	8020996258563062	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-update	39e99e3b36655a57
+3362	3411	8020996260412520	glad-populate-prefix/src/glad-populate-stamp/glad-populate-patch	2a6fa9aa0c6fd553
+3362	3411	8020996260412520	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-patch	2a6fa9aa0c6fd553
+3411	3457	8020996260871601	glad-populate-prefix/src/glad-populate-stamp/glad-populate-configure	7564e5bc171d9463
+3411	3457	8020996260871601	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-configure	7564e5bc171d9463
+3457	3506	8020996261363328	glad-populate-prefix/src/glad-populate-stamp/glad-populate-build	701c430ef3f9bd0e
+3457	3506	8020996261363328	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-build	701c430ef3f9bd0e
+3506	3556	8020996261859408	glad-populate-prefix/src/glad-populate-stamp/glad-populate-install	3c163497507fd914
+3506	3556	8020996261859408	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-install	3c163497507fd914
+3556	3604	8020996262349661	glad-populate-prefix/src/glad-populate-stamp/glad-populate-test	fcbdaea89e5fae0a
+3556	3604	8020996262349661	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-test	fcbdaea89e5fae0a
+3604	3669	8020996262993172	CMakeFiles/glad-populate-complete	7568aedfbaf5cde
+3604	3669	8020996262993172	glad-populate-prefix/src/glad-populate-stamp/glad-populate-done	7568aedfbaf5cde
+3604	3669	8020996262993172	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/CMakeFiles/glad-populate-complete	7568aedfbaf5cde
+3604	3669	8020996262993172	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glad-subbuild/glad-populate-prefix/src/glad-populate-stamp/glad-populate-done	7568aedfbaf5cde

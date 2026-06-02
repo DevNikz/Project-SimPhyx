@@ -1,0 +1,21 @@
+# ninja log v6
+4	57	8020996167376672	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-mkdir	8052ee97fc01bdc3
+4	57	8020996167376672	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-mkdir	8052ee97fc01bdc3
+57	4343	8020996210232398	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-download	b6518a0e0b17f703
+57	4343	8020996210232398	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-download	b6518a0e0b17f703
+4343	4483	8020996210294944	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-update	5b04f070e1dcc423
+4343	4483	8020996210294944	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-update	5b04f070e1dcc423
+4484	4529	8020996212103835	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-patch	944aa57e33233b99
+4484	4529	8020996212103835	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-patch	944aa57e33233b99
+4529	4574	8020996212557068	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-configure	8d7f9fbd56c66c93
+4529	4574	8020996212557068	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-configure	8d7f9fbd56c66c93
+4574	4621	8020996213029145	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-build	213e523490f1380b
+4574	4621	8020996213029145	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-build	213e523490f1380b
+4621	4672	8020996213534322	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-install	ce3db52972790f8c
+4621	4672	8020996213534322	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-install	ce3db52972790f8c
+4672	4721	8020996214023986	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-test	e818dc3c1bf8f365
+4672	4721	8020996214023986	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-test	e818dc3c1bf8f365
+4721	4787	8020996214683417	CMakeFiles/glfw-populate-complete	f25f5f60f5b17a68
+4721	4787	8020996214683417	glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-done	f25f5f60f5b17a68
+4721	4787	8020996214683417	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/CMakeFiles/glfw-populate-complete	f25f5f60f5b17a68
+4721	4787	8020996214683417	D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-done	f25f5f60f5b17a68

@@ -1,0 +1,14 @@
+# Target labels
+ glfw-populate
+# Source files and their labels
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/CMakeFiles/glfw-populate
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/CMakeFiles/glfw-populate.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/CMakeFiles/glfw-populate-complete.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-build.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-configure.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-download.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-install.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-mkdir.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-patch.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-test.rule
+D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glfw-subbuild/glfw-populate-prefix/src/glfw-populate-stamp/glfw-populate-update.rule
