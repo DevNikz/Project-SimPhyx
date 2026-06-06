@@ -47,7 +47,7 @@ find_package(OpenGL REQUIRED)
 
 # Add source to this project's executable.
 # Change these to your files
-add_executable (Project-SimPhyx "main.cpp" "main.h" "tiny_obj_loader.h" "stb_image.h" ${GLAD_SRC} "src/Physics/Particle.h" "src/Physics/Particle.cpp" "Shader.h" "Camera.h" "Camera.cpp" "Shader.cpp" "Model.h" "Model.cpp" "src/RenderParticle.h" "src/RenderParticle.cpp"  "src/Physics/PhysicsWorld.h" "src/Physics/PhysicsWorld.cpp")
+add_executable (Project-SimPhyx "main.cpp" "main.h" "tiny_obj_loader.h" "stb_image.h" ${GLAD_SRC} "src/Physics/Particle.h" "src/Physics/Particle.cpp" "Shader.h" "Camera.h" "Camera.cpp" "Shader.cpp" "Model.h" "Model.cpp" "src/RenderParticle.h" "src/RenderParticle.cpp"  "src/Physics/PhysicsWorld.h" "src/Physics/PhysicsWorld.cpp" "src/ForceRegistry.h" "src/ForceGenerator.h" "src/ForceRegistry.cpp" "src/GravityForceGenerator.h" "src/GravityForceGenerator.cpp" "src/DragForceGenerator.h" "src/DragForceGenerator.cpp")
 
 target_include_directories(Project-SimPhyx PRIVATE
     ${glfw_SOURCE_DIR}/include
