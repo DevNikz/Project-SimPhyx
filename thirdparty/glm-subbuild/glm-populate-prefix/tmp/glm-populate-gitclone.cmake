@@ -61,7 +61,7 @@ if(error_code)
   message(FATAL_ERROR "Failed to checkout tag: '1.0.1'")
 endif()
 
-set(init_submodules TRUE)
+set(init_submodules FALSE)
 if(init_submodules)
   execute_process(
     COMMAND "C:/Program Files/Git/cmd/git.exe" 

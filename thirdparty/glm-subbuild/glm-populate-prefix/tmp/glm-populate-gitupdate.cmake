@@ -304,7 +304,7 @@ if(need_stash)
   endif()
 endif()
 
-set(init_submodules "TRUE")
+set(init_submodules "FALSE")
 if(init_submodules)
   execute_process(
     COMMAND "C:/Program Files/Git/cmd/git.exe"

@@ -27,7 +27,7 @@ set_property(GLOBAL PROPERTY _CMAKE_FindGit_GIT_EXECUTABLE_VERSION
 
 include(ExternalProject)
 ExternalProject_Add(glm-populate
-                     "UPDATE_DISCONNECTED" "False" "GIT_REPOSITORY" "https://github.com/g-truc/glm.git" "EXTERNALPROJECT_INTERNAL_ARGUMENT_SEPARATOR" "GIT_TAG" "1.0.1"
+                     "UPDATE_DISCONNECTED" "False" "GIT_REPOSITORY" "https://github.com/g-truc/glm.git" "EXTERNALPROJECT_INTERNAL_ARGUMENT_SEPARATOR" "GIT_TAG" "1.0.1" "GIT_SUBMODULES" ""
                     SOURCE_DIR          "D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glm-src"
                     BINARY_DIR          "D:/Coding/GDPHYSX/Project-SimPhyx/thirdparty/glm-build"
                     CONFIGURE_COMMAND   ""

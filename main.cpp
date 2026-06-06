@@ -565,7 +565,8 @@ int main(void)
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
-    gladLoadGL(glfwGetProcAddress); // if using CMAKE
+    gladLoadGL();
+    //gladLoadGL(glfwGetProcAddress); // if using CMAKE
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -581,7 +582,7 @@ int main(void)
         700.f //Far
     );
 
-    Shader noobShader("Shaders/noobShader.vert", "Shaders/noobShader.frag");
+    Shader noobShader("Shaders/unlit.vert", "Shaders/unlit.frag");
 
     std::list<RenderParticle*> RenderParticles;
     /*PhysicsWorld* pWorld = new PhysicsWorld();*/
