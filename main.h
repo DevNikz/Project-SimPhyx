@@ -18,6 +18,7 @@
 #include "Shader.h"
 #include "Model.h"
 #include "src/RenderParticle.h"
+#include "src/DragForceGenerator.h"
 
 using namespace std;
 using namespace Physics;

@@ -55,7 +55,7 @@ std::uniform_real_distribution<float> dist(-25.f, 25.f);
 
 PerspectiveCamera thirdPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 PerspectiveCamera firstPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-OrthographicCamera topDown(glm::vec3(0.f, 0.0f, 1.f));
+OrthographicCamera topDown(glm::vec3(0.f, 0.0f, 100.f));
 
 float windowWidth = 700;
 float windowHeight = 700;
@@ -542,6 +542,13 @@ bool AtCenter(Particle& p, ParticleResult& r, float t, float threshold = 5.f) {
     else return false;
 }
 
+struct ParticleConfig {
+    glm::vec3 position = glm::vec3(0.f, -700, 200.f);
+    glm::vec3 velocity = glm::vec3(0.f);
+    glm::vec3 accel = glm::vec3(1.f, 1.f, 0.f);
+    float damping = 0.9f;
+};
+
 
 //MAIN
 int main(void)
@@ -582,65 +589,77 @@ int main(void)
         700.f //Far
     );
 
-    Shader noobShader("Shaders/unlit.vert", "Shaders/unlit.frag");
+    Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
 
     std::list<RenderParticle*> RenderParticles;
-    /*PhysicsWorld* pWorld = new PhysicsWorld();*/
-    auto pWorld = std::make_unique<PhysicsWorld>();
-    float edge = 700.f;
+    PhysicsWorld pWorld = PhysicsWorld();
+    //auto pWorld = std::make_unique<PhysicsWorld>();
+    float edge = 690.f;
 
     //Skybox skybox("cubemap1_right", "cubemap1_left", "cubemap1_top", "cubemap1_bottom", "cubemap1_front", "cubemap1_back");
     //skybox.InitSky();
     //skybox.InitTextures();
 
     //Model shipmentObj = Model("Sci-fi Large container", "Sci-fi Container _Base_Color", ".png", "Sci-fi Container _Normal_OpenGL", ".png", "", "", "3D/");
-    /*Model* sphereModel = new Model("sphere", "", "");*/
     auto sphereModel = std::make_unique<Model>("sphere", "", "");
     sphereModel->InitModel();
-    sphereModel->Scale(glm::vec3(50.f));
-    sphereModel->AssignShader(&noobShader);
+    sphereModel->Scale(glm::vec3(10.f));
+    sphereModel->AssignShader(&unlit);
 
-    glm::vec3 v = glm::vec3(0.f, 0.f, 0.f);
-    glm::vec3 f = glm::vec3(60000, 0, 0);
-    glm::vec3 accel = glm::vec3(1.f, 0.f, 0.f);;
+    int particleCount = 100;
+    ParticleConfig cfg;
 
-    //Red
-    auto p1 = std::make_unique<Particle>();
-    p1->Position = glm::vec3(-edge, 250.f, 201.f);
-    p1->Velocity = v;
-    p1->Acceleration = accel;
-    p1->damping = 1.f;
-    p1->ApplyForce(f);
-    p1->useGravity = true;
-    pWorld->AddParticle(p1.get());
+    std::mt19937 rng(42); // seed for reproducibility
+    std::uniform_real_distribution<float> colorGen(0.1f, 1.f);
+    std::uniform_real_distribution<float> massGen(0.5f, 0.9f);
+    std::uniform_real_distribution<float> forceXGen(-15000.f, 15000.f);
+    std::uniform_real_distribution<float> forceYGen(50000.f, 75000.f);
+    DragForceGenerator drag = DragForceGenerator(0.14f, 0.1f);
 
-    //Green
-    auto p2 = std::make_unique<Particle>();
-    p2->Position = glm::vec3(-edge, 0.f, 173.f);
-    p2->Velocity = v;
-    p2->Acceleration = accel;
-    p2->damping = 0.5f;
-    p2->ApplyForce(f);
-    p2->useGravity = true;
-    pWorld->AddParticle(p2.get());
+    auto spawnParticle = [&]() {
+        glm::vec3 color = { colorGen(rng), colorGen(rng), colorGen(rng) };
+        glm::vec3 force = { forceXGen(rng), forceYGen(rng), 0.f };
 
-    //Yellow
-    auto p3 = std::make_unique<Particle>();
-    p3->Position = glm::vec3(-edge, -250.f, -150.f);
-    p3->Velocity = v;
-    p3->Acceleration = accel;
-    p3->damping = 0.25f;
-    p3->ApplyForce(f);
-    p3->useGravity = true;
-    pWorld->AddParticle(p3.get());
+        /*auto p = std::make_unique<Particle>();*/
+        Particle* p = new Particle();
+        p->Position = cfg.position;
+        p->Velocity = cfg.velocity;
+        p->Acceleration = cfg.accel;
+        p->damping = cfg.damping;
+        p->mass = massGen(rng);
+        p->ApplyForce(force);
 
+        pWorld.forceRegistry.Add(p, &drag);
+        pWorld.AddParticle(p);
+        RenderParticles.push_back(new RenderParticle(p, sphereModel.get(), color));   
+    };
 
-    RenderParticle* rp1 = new RenderParticle(p1.get(), sphereModel.get(), glm::vec3(0.5f, 0.f, 0.f));
-    RenderParticle* rp2 = new RenderParticle(p2.get(), sphereModel.get(), glm::vec3(0.f, 0.5f, 0.f));
-    RenderParticle* rp3 = new RenderParticle(p3.get(), sphereModel.get(), glm::vec3(0.5f, 0.5f, 0.f));
-    RenderParticles.push_back(rp1);
-    RenderParticles.push_back(rp2);
-    RenderParticles.push_back(rp3);
+    for (int i = 0; i < particleCount; ++i) spawnParticle();
+
+    /*
+    for (int i = 0; i < particleCount; i++) {
+        auto p = std::make_unique<Particle>();
+        float red = colorGen(rng);
+        float green = colorGen(rng);
+        float blue = colorGen(rng);
+        float mass = massGen(rng);
+        float forceX = forceXGen(rng);
+        float forceY = forceYGen(rng);
+
+        glm::vec3 force = glm::vec3(forceX, forceY, 0);
+        
+        p->Position = glm::vec3(0.f, -edge, 200.f);
+        p->Velocity = v;
+        p->Acceleration = accel;
+        p->damping = 0.9f;
+        p->mass = mass;
+        p->ApplyForce(force);
+        pWorld->forceRegistry.Add(p.get(), &drag);
+        pWorld->AddParticle(p.get());
+        RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), glm::vec3(red, green, blue));
+        RenderParticles.push_back(rp);
+    }
+    */
 
     //Enable anti-aliasing and blend
     glEnable(GL_MULTISAMPLE);
@@ -654,49 +673,21 @@ int main(void)
     auto prev_time = curr_time;
     std::chrono::nanoseconds curr_ns(0);
 
-    ParticleResult results[4];
-    results[0] = { "Red", glm::vec3(1,0,0), 0, 0, glm::vec3(0.f), 0, false, p1->GetPosition() };
-    results[1] = { "Green", glm::vec3(0,1,0), 0, 0, glm::vec3(0.f), 0, false, p2->GetPosition() };
-    results[2] = { "Blue", glm::vec3(0,0,1), 0, 0, glm::vec3(0.f), 0, false, p3->GetPosition() };
-    //results[3] = { "Yellow", glm::vec3(1,1,0), 0, 0, glm::vec3(0.f), 0, false, p4->GetPosition() };
-
-    int rankCounter = 1;
-
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Poll for and process events */
         glfwPollEvents();
 
+        /* Swap front and back buffers */
+        glfwSwapBuffers(window);
+
+        //Normal Update
+        processInput(window);
+
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
         prev_time = curr_time;
-
-        auto checkFinish = [&](Particle& p, ParticleResult& r, float t, float threshold = 5.f) {
-            if (r.finished) return;
-
-            r.elapsedTime += t;
-
-            if (glm::length(glm::vec2(p.Position.x, p.Position.y)) <= threshold) {
-                p.Position.x = 0.f;
-                p.Position.y = 0.f;
-
-                r.finished = true;
-                r.rank = rankCounter++;
-                r.time = r.elapsedTime;
-                r.finalSpeed = glm::length(p.Velocity);
-
-                //float totalDist = glm::length(glm::vec2(r.startPos.x, r.startPos.y));
-                glm::vec3 displacement = glm::vec3(0.f) - r.startPos;
-                r.avgVelocity = displacement / r.time;
-
-                p.Velocity = glm::vec3(0.f);
-                p.Acceleration = glm::vec3(0.f);
-
-                p.Destroy();
-            }
-
-            };
 
         curr_ns += dur;
         if (curr_ns >= timestep) {
@@ -704,54 +695,22 @@ int main(void)
             curr_ns -= timestep;
 
             //Physics Update
-            pWorld->Update(timestep_sec);
+            pWorld.Update(timestep_sec);
 
-            /*
-            checkFinish(*p1, results[0], timestep_sec);
-            checkFinish(*p2, results[1], timestep_sec);
-            checkFinish(*p3, results[2], timestep_sec);
-            checkFinish(*p4, results[3], timestep_sec);
-            */
-
-            if (p1->IsDestroyed() && p2->IsDestroyed() && p3->IsDestroyed()) {
-                glfwSetWindowShouldClose(window, true);
-            }
+            //if (p1->IsDestroyed() && p2->IsDestroyed() && p3->IsDestroyed()) {
+            //    glfwSetWindowShouldClose(window, true);
+            //}
         }
 
-        //Normal Update
-
-        processInput(window);
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        noobShader.use();
-        noobShader.passOrthoCamera(topDown);
+        unlit.use();
+        unlit.passOrthoCamera(topDown);
 
         for (list<RenderParticle*>::iterator i = RenderParticles.begin(); i != RenderParticles.end(); i++) {
             (*i)->Draw();
         }
-
-        /*
-        //Skybox
-        skyboxShader.use();
-        glDepthMask(GL_FALSE);
-        glDepthFunc(GL_LEQUAL);
-        skyboxShader.setInt("skybox", 0);
-        if (cameraType == THIRDPERSON) skyboxShader.PassSkybox(thirdPerson, lookTarget);
-        else skyboxShader.PassOrthoSkybox(topDown);
-
-
-        skybox.DrawSky();
-
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LESS);
-        //EOF Skybox
-        */
-
-
-
-        //sphereModel.Position(particle.Position);
-        //sphereModel.DrawModel();
 
         /*
         defaultShader.use();
@@ -774,12 +733,11 @@ int main(void)
         floorModel.DrawModel();
         */
 
-        /* Swap front and back buffers */
-        glfwSwapBuffers(window);
+        
     }
 
     sphereModel->DeleteBuffers();
-    std::cout << std::fixed << std::setprecision(2);
+    //std::cout << std::fixed << std::setprecision(2);
 
     /*
     std::vector<ParticleResult*> sorted = { &results[0], &results[1], &results[2], &results[3] };
