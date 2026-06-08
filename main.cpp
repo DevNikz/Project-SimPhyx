@@ -8,12 +8,11 @@
 using namespace std;
 
 enum CameraType {
-    THIRDPERSON,
-    FIRSTPERSON,
-    TOPDOWN
+    PERSPECTIVE,
+    ORTHOGRAPHIC
 };
 
-CameraType cameraType = TOPDOWN;
+CameraType cameraType = ORTHOGRAPHIC;
 
 #ifndef PERSPECTIVE_CAM_H
 
@@ -50,9 +49,9 @@ public:
 
 #endif
 
-PerspectiveCamera thirdPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-PerspectiveCamera firstPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-OrthographicCamera topDown(glm::vec3(0.f, 0.0f, 1.f));
+PerspectiveCamera perspectiveCam(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+//PerspectiveCamera firstPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+OrthographicCamera orthoCam(glm::vec3(0.f, 0.0f, 1.f));
 
 float windowWidth = 800.f;
 float windowHeight = 800.f;
@@ -72,6 +71,15 @@ float orbitYawOffset = 180.f;
 float orbitPitch = 25.f;
 const float sensitivity = 0.1f;
 
+glm::vec3 orbitTarget = glm::vec3(0.f, 0.f, 0.f);
+bool simulationPaused = false;
+
+const float START_VIEW_HALF_HEIGHT = 800.f;
+const float PERSPECTIVE_FOV = 45.f;
+
+float orbitRadius =
+START_VIEW_HALF_HEIGHT / tan(glm::radians(PERSPECTIVE_FOV * 0.5f));
+
 // Third-person shoulder camera state
 glm::vec3 modelPosition = glm::vec3(0.f, 0.f, 10.f);
 float modelYaw = 0.f;
@@ -84,7 +92,7 @@ const float CAM_DIST = 8.f;
 const float CAM_HEIGHT = 2.5f;
 const float CAM_SIDE = 0.0f;
 
-glm::vec3 topDownPosition = glm::vec3(0.f, 60.f, 0.f);
+glm::vec3 orthoCamPosition = glm::vec3(0.f, 60.f, 0.f);
 
 class PointLight
 {
@@ -178,13 +186,35 @@ DirectionalLight dirLight(
     64.f                              // specularPhong
 );
 
+void updateOrbitCameras()
+{
+    float yaw = glm::radians(orbitYawOffset);
+    float pitch = glm::radians(orbitPitch);
+
+    glm::vec3 orbitOffset;
+    orbitOffset.x = orbitRadius * cos(pitch) * sin(yaw);
+    orbitOffset.y = orbitRadius * sin(pitch);
+    orbitOffset.z = orbitRadius * cos(pitch) * cos(yaw);
+
+    perspectiveCam.Position = orbitTarget + orbitOffset;
+    perspectiveCam.Front = glm::normalize(orbitTarget - perspectiveCam.Position);
+    perspectiveCam.Right = glm::normalize(glm::cross(perspectiveCam.Front, perspectiveCam.WorldUp));
+    perspectiveCam.Up = glm::normalize(glm::cross(perspectiveCam.Right, perspectiveCam.Front));
+
+    orthoCam.Position = perspectiveCam.Position;
+    orthoCam.Front = perspectiveCam.Front;
+    orthoCam.Right = perspectiveCam.Right;
+    orthoCam.Up = perspectiveCam.Up;
+}
+
 void processInput(GLFWwindow* window)
 {
     static bool onePress = false;
     static bool twoPress = false;
     static bool fPress = false;
+    static bool spacePressed = false;
     static int lightIntensity = 0;
-    static CameraType prevMode = TOPDOWN;
+    static CameraType prevMode = ORTHOGRAPHIC;
 
     const float lightIntensities[] = { 2.5f, 5.f, 7.5f };
 
@@ -200,36 +230,22 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    //ThirdPerson or FirstPerson
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
-        if (!onePress && cameraType != TOPDOWN)
-        {
-            cameraType = (cameraType == THIRDPERSON) ? FIRSTPERSON : THIRDPERSON;
-            prevMode = cameraType;
-        }
-        onePress = true;
-    }
-    else onePress = false;
-
-    //Perspective or Ortho
-    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+    //Play/pause sim
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
     {
-        if (!twoPress)
-        {
-            if (cameraType != TOPDOWN)
-            {
-                prevMode = cameraType; // save current before switching
-                cameraType = TOPDOWN;
-                topDownPosition = modelPosition + glm::vec3(0.f, 40.f, 0.f);
-            }
-            else
-            {
-                cameraType = prevMode; // return to previous
-            }
-        }
-        twoPress = true;
+        if (!spacePressed)
+            simulationPaused = !simulationPaused;
+
+            spacePressed = true;
     }
-    else twoPress = false;
+    else spacePressed = false;
+
+    //Ortho or perspective
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+        cameraType = ORTHOGRAPHIC;
+
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+        cameraType = PERSPECTIVE;
 
     //Point light
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
@@ -244,88 +260,25 @@ void processInput(GLFWwindow* window)
     else fPress = false;
 
 
-    //Move
-    if (cameraType == THIRDPERSON)
-    {
-        // --- Rotate tank in place (A = turn left, D = turn right) -----------
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        {
-            modelYaw += turnSpeed * deltaTime;
-            tankMoved = true;
-        }
+    //Orbit cam
+    const float orbitSpeed = 60.f;
 
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        {
-            modelYaw -= turnSpeed * deltaTime;
-            tankMoved = true;
-        }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        orbitYawOffset -= orbitSpeed * deltaTime;
 
-        // --- Compute tank's local forward vector from its current yaw -------
-        glm::vec3 tankForward = glm::normalize(glm::vec3(
-            cos(glm::radians(-modelYaw)),
-            0.f,
-            sin(glm::radians(-modelYaw))
-        ));
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        orbitYawOffset += orbitSpeed * deltaTime;
 
-        // --- Drive forward / backward (W / S) --------------------------------
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            modelPosition += tankForward * moveSpeed * deltaTime;
-            tankMoved = true;
-        }
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            modelPosition -= tankForward * moveSpeed * deltaTime;
-            tankMoved = true;
-        }
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        orbitPitch += orbitSpeed * deltaTime;
 
-        if (tankMoved)
-        {
-            firstPersonYaw = -modelYaw;
-            firstPersonPitch = 0.f;
-        }
-    }
-    else if (cameraType == FIRSTPERSON)
-    {
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            firstPersonYaw -= fpTurnSpeed * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        orbitPitch -= orbitSpeed * deltaTime;
 
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            firstPersonYaw += fpTurnSpeed * deltaTime;
+    if (orbitPitch < -85.f) orbitPitch = -85.f;
+    if (orbitPitch > 85.f) orbitPitch = 85.f;
 
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            firstPersonPitch += fpMoveSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            firstPersonPitch -= fpMoveSpeed * deltaTime;
-
-        // Clamp pitch
-        if (firstPersonPitch > 89.f) firstPersonPitch = 89.f;
-        if (firstPersonPitch < -89.f) firstPersonPitch = -89.f;
-
-        // Q/E - zoom in/out
-        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-            firstPersonFOV -= fpMoveSpeed * deltaTime * 10.f;
-        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-            firstPersonFOV += fpMoveSpeed * deltaTime * 10.f;
-
-        if (firstPersonFOV < 10.f) firstPersonFOV = 10.f;
-        if (firstPersonFOV > 120.f) firstPersonFOV = 120.f;
-
-    }
-
-    else {
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            topDownPosition.x -= panSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            topDownPosition.x += panSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            topDownPosition.z -= panSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            topDownPosition.z += panSpeed * deltaTime;
-    }
-
+    updateOrbitCameras();
 }
 
 
@@ -339,37 +292,37 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 // glfw: whenever the mouse moves, this callback is called
 // -------------------------------------------------------
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
-{
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
-
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-
-    lastX = xpos;
-    lastY = ypos;
-
-    switch (cameraType) {
-    case THIRDPERSON:
-
-        orbitYawOffset += xoffset * sensitivity;
-        orbitPitch += yoffset * sensitivity;
-
-        if (orbitPitch < 5.f)  orbitPitch = 5.f;
-        if (orbitPitch > 80.f) orbitPitch = 80.f;
-
-        thirdPerson.ProcessMouseMovement(orbitYawOffset, orbitPitch);
-        break;
-    }
-}
+//void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
+//{
+//    float xpos = static_cast<float>(xposIn);
+//    float ypos = static_cast<float>(yposIn);
+//
+//    if (firstMouse)
+//    {
+//        lastX = xpos;
+//        lastY = ypos;
+//        firstMouse = false;
+//    }
+//
+//    float xoffset = xpos - lastX;
+//    float yoffset = lastY - ypos;
+//
+//    lastX = xpos;
+//    lastY = ypos;
+//
+//    switch (cameraType) {
+//    case THIRDPERSON:
+//
+//        orbitYawOffset += xoffset * sensitivity;
+//        orbitPitch += yoffset * sensitivity;
+//
+//        if (orbitPitch < 5.f)  orbitPitch = 5.f;
+//        if (orbitPitch > 80.f) orbitPitch = 80.f;
+//
+//        perspectiveCam.ProcessMouseMovement(orbitYawOffset, orbitPitch);
+//        break;
+//    }
+//}
 
 #ifndef SKYBOX_H
 float skyboxVertices[]{
@@ -601,19 +554,30 @@ int main(void)
     gladLoadGL();
     //gladLoadGL(glfwGetProcAddress); // if using CMAKE
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetCursorPosCallback(window, mouse_callback);
+    //glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     //Camera instances
-    topDown.Projection = glm::ortho(
-        -800.f, //L
-        800.f, //R
-        -800.f, //Bottom
-        800.f, //Top
-        -800.f, //Near
-        800.f //Far
+    orthoCam.Projection = glm::ortho(
+        -START_VIEW_HALF_HEIGHT,
+        START_VIEW_HALF_HEIGHT,
+        -START_VIEW_HALF_HEIGHT,
+        START_VIEW_HALF_HEIGHT,
+        -5000.f,
+        5000.f
     );
+
+    perspectiveCam.Projection = glm::perspective(
+        glm::radians(PERSPECTIVE_FOV),
+        windowWidth / windowHeight,
+        0.1f,
+        5000.f
+    );
+
+    updateOrbitCameras();
+
+    updateOrbitCameras();
 
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
 
@@ -630,8 +594,6 @@ int main(void)
     auto sphereModel = std::make_unique<Model>("sphere", "", "");
     sphereModel->InitModel();
     sphereModel->AssignShader(&unlit);
-
-    
 
     auto spawnParticle = [&]() {
         glm::vec3 color = { colorGen(rng), colorGen(rng), colorGen(rng) };
@@ -686,44 +648,49 @@ int main(void)
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
 
-        if (spawnedCount < particleCount) {
-            spawnTimer += framesec;
-            if (spawnTimer >= spawnInterval) {
-                spawnTimer -= spawnInterval;
-                spawnParticle();
+        if (!simulationPaused) {
+            if (spawnedCount < particleCount) {
+                spawnTimer += framesec;
+                if (spawnTimer >= spawnInterval) {
+                    spawnTimer -= spawnInterval;
+                    spawnParticle();
+                }
             }
-        }
 
-        for (auto& fp : fountainParticles) {
-            if (!fp.alive) continue;
+            for (auto& fp : fountainParticles) {
+                if (!fp.alive) continue;
 
-            fp.age += framesec;
-            if (fp.age >= fp.p->Lifespan) {
-                fp.alive = false;
+                fp.age += framesec;
+                if (fp.age >= fp.p->Lifespan) {
+                    fp.alive = false;
 
-                // Remove from render list
-                RenderParticles.remove(fp.rp);
-                delete fp.rp;
-                fp.rp = nullptr;
-                fp.p->Destroy();
+                    // Remove from render list
+                    RenderParticles.remove(fp.rp);
+                    delete fp.rp;
+                    fp.rp = nullptr;
+                    fp.p->Destroy();
+                }
             }
-        }
 
-        //curr_ns += dur;
-        curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
-        if (curr_ns >= timestep) {
-            constexpr float timestep_sec = timestep.count() / (float)(1E09);
-            curr_ns -= timestep;
+            //curr_ns += dur;
+            curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
+            if (curr_ns >= timestep) {
+                constexpr float timestep_sec = timestep.count() / (float)(1E09);
+                curr_ns -= timestep;
 
-            //Physics Update
-            pWorld.Update(timestep_sec);
+                //Physics Update
+                pWorld.Update(timestep_sec);
+            }
         }
 
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         unlit.use();
-        unlit.passOrthoCamera(topDown);
+        if (cameraType == ORTHOGRAPHIC)
+            unlit.passOrthoCamera(orthoCam);
+        else
+            unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
 
         for (auto* rp : RenderParticles) {
             rp->Draw();
