@@ -519,6 +519,7 @@ int main(void)
 {
     constexpr std::chrono::nanoseconds timestep(6944444);
 
+    //Random Gen Inits
     std::vector<FountainParticle> fountainParticles;
     std::uniform_real_distribution<float> colorGen(0.1f, 1.f);
     std::uniform_real_distribution<float> massGen(2.5f, 5.f);
@@ -527,9 +528,9 @@ int main(void)
     std::uniform_real_distribution<float> forceYGen(100000.f, 200000.f);
     std::uniform_real_distribution<float> lifespanGen(1.f, 10.f);
     std::uniform_real_distribution<float> scaleGen(2.f, 10.f);
-    //DragForceGenerator drag = DragForceGenerator(0.28f, 0.2f);
     DragForceGenerator drag = DragForceGenerator(0.14f, 0.1f);
 
+    //Input Particle Count
     int particleCount = 0;
     cout << "Input Particle Count: ";
     cin >> particleCount;
@@ -553,9 +554,7 @@ int main(void)
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
     gladLoadGL();
-    //gladLoadGL(glfwGetProcAddress); // if using CMAKE
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    //glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
@@ -575,18 +574,21 @@ int main(void)
         0.1f,
         5000.f
     );
-
     updateOrbitCameras();
+
+    //Load Shader
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
 
     std::list<RenderParticle*> RenderParticles;
     PhysicsWorld pWorld = PhysicsWorld();
     float edge = 750.f;
 
+    //Load Model
     auto sphereModel = std::make_unique<Model>("sphere", "", "");
     sphereModel->InitModel();
     sphereModel->AssignShader(&unlit);
 
+    //Lambda for spawning particle
     auto spawnParticle = [&]() {
         glm::vec3 color = { colorGen(rng), colorGen(rng), colorGen(rng) };
         glm::vec3 force = { forceXGen(rng), forceYGen(rng), forceXGen(rng)};
@@ -640,6 +642,7 @@ int main(void)
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
 
+        //Spawn Particle per 0.1s tick | Spacebar for pasuing / resuming sim
         if (!simulationPaused) {
             if (spawnedCount < particleCount) {
                 spawnTimer += framesec;
@@ -648,8 +651,9 @@ int main(void)
                     spawnParticle();
                 }
             }
-            else spawnedCount = 0;
+            else spawnedCount = 0; //Reset spawned count so it spawns again
 
+            //Destroy particles when its past its lifespan
             for (auto& fp : fountainParticles) {
                 if (!fp.alive) continue;
 
@@ -665,7 +669,7 @@ int main(void)
                 }
             }
 
-            //curr_ns += dur;
+            //Physics Update Here
             curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
             if (curr_ns >= timestep) {
                 constexpr float timestep_sec = timestep.count() / (float)(1E09);
@@ -680,11 +684,14 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         unlit.use();
+
+        //Switching camera using 1 or 2 keybind
         if (cameraType == ORTHOGRAPHIC)
             unlit.passOrthoCamera(orthoCam);
         else
             unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
 
+        //Draw Particles. Auto disables if its "dead"
         for (auto* rp : RenderParticles) {
             rp->Draw();
         }
