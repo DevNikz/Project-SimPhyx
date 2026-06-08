@@ -16,6 +16,6 @@ namespace Physics {
 
 	private:
 		void UpdateParticleList();
-		GravityForceGenerator Gravity = GravityForceGenerator(glm::vec3(0.f, -9.8f, 0.f));
+		GravityForceGenerator Gravity = GravityForceGenerator(glm::vec3(0.f, -10.f, 0.f));
 	};
 }

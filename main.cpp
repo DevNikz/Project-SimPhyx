@@ -495,7 +495,7 @@ bool AtCenter(Particle& p, ParticleResult& r, float t, float threshold = 5.f) {
 struct ParticleConfig {
     glm::vec3 position = glm::vec3(0.f, -700, 0.f);
     glm::vec3 velocity = glm::vec3(0.f);
-    glm::vec3 accel = glm::vec3(1.5f, 1.5f, 0.f);
+    glm::vec3 accel = glm::vec3(1.f, 1.f, 1.f);
     float damping = 0.9f;
 };
 
@@ -509,7 +509,7 @@ struct FountainParticle {
 int spawnedCount = 0;
 float spawnTimer = 0.f;
 //spawn tick
-const float spawnInterval = 0.15f;
+const float spawnInterval = 0.025f;
 
 
 std::mt19937 rng(42); // seed for reproducibility
@@ -521,13 +521,14 @@ int main(void)
 
     std::vector<FountainParticle> fountainParticles;
     std::uniform_real_distribution<float> colorGen(0.1f, 1.f);
-    std::uniform_real_distribution<float> massGen(0.5f, 0.9f);
+    std::uniform_real_distribution<float> massGen(2.5f, 5.f);
     std::uniform_real_distribution<float> dampGen(0.3f, 0.9f);
-    std::uniform_real_distribution<float> forceXGen(-15000.f, 15000.f);
-    std::uniform_real_distribution<float> forceYGen(50000.f, 75000.f);
+    std::uniform_real_distribution<float> forceXGen(-50000.f, 50000.f);
+    std::uniform_real_distribution<float> forceYGen(100000.f, 200000.f);
     std::uniform_real_distribution<float> lifespanGen(1.f, 10.f);
     std::uniform_real_distribution<float> scaleGen(2.f, 10.f);
-    DragForceGenerator drag = DragForceGenerator(0.28f, 0.2f);
+    //DragForceGenerator drag = DragForceGenerator(0.28f, 0.2f);
+    DragForceGenerator drag = DragForceGenerator(0.14f, 0.1f);
 
     int particleCount = 0;
     cout << "Input Particle Count: ";
@@ -576,28 +577,19 @@ int main(void)
     );
 
     updateOrbitCameras();
-
-    updateOrbitCameras();
-
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
 
     std::list<RenderParticle*> RenderParticles;
     PhysicsWorld pWorld = PhysicsWorld();
-    //auto pWorld = std::make_unique<PhysicsWorld>();
     float edge = 750.f;
 
-    //Skybox skybox("cubemap1_right", "cubemap1_left", "cubemap1_top", "cubemap1_bottom", "cubemap1_front", "cubemap1_back");
-    //skybox.InitSky();
-    //skybox.InitTextures();
-
-    //Model shipmentObj = Model("Sci-fi Large container", "Sci-fi Container _Base_Color", ".png", "Sci-fi Container _Normal_OpenGL", ".png", "", "", "3D/");
     auto sphereModel = std::make_unique<Model>("sphere", "", "");
     sphereModel->InitModel();
     sphereModel->AssignShader(&unlit);
 
     auto spawnParticle = [&]() {
         glm::vec3 color = { colorGen(rng), colorGen(rng), colorGen(rng) };
-        glm::vec3 force = { forceXGen(rng), forceYGen(rng), 0.f };
+        glm::vec3 force = { forceXGen(rng), forceYGen(rng), forceXGen(rng)};
 
         /*auto p = std::make_unique<Particle>();*/
         Particle* p = new Particle();
@@ -656,6 +648,7 @@ int main(void)
                     spawnParticle();
                 }
             }
+            else spawnedCount = 0;
 
             for (auto& fp : fountainParticles) {
                 if (!fp.alive) continue;
@@ -695,33 +688,9 @@ int main(void)
         for (auto* rp : RenderParticles) {
             rp->Draw();
         }
-
-        /*
-        defaultShader.use();
-        if (cameraType == THIRDPERSON) defaultShader.passPerspectiveCamera(thirdPerson, lookTarget);
-        else defaultShader.passOrthoCamera(topDown);
-
-        //Pass lights to shader
-        pointLight.Apply(defaultShader, "pointLight");
-        dirLight.Apply(defaultShader, "dirLight");
-
-        //Floor
-        glm::mat4 floor = glm::mat4(1.0f);
-        floor = glm::translate(floor, glm::vec3(0.f, 0.f, 0.f));
-        floor = glm::scale(floor, glm::vec3(1000.0f));
-        defaultShader.setFloat("tiling", 50.f);
-        defaultShader.setMat4("transform", 1, floor);
-        defaultShader.setBool("useAlphaClip", false);
-        defaultShader.LoadTexture(floorModel.GetDiffuse());
-        defaultShader.LoadNormal(floorModel.GetNormal());
-        floorModel.DrawModel();
-        */
-
-        
     }
 
     sphereModel->DeleteBuffers();
-    //std::cout << std::fixed << std::setprecision(2);
 
     //Terminate gl
     glfwTerminate();

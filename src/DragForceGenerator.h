@@ -14,4 +14,4 @@ namespace Physics {
 		DragForceGenerator(float _k1, float _k2) : k1(_k1), k2(_k2) {}
 		void UpdateForce(Particle* particle, float time);
 	};
-}
+}	
