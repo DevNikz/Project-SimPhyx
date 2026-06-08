@@ -544,7 +544,7 @@ int main(void)
     /* Create a windowed mode window and its OpenGL context */
     glfwWindowHint(GLFW_SAMPLES, 8);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, "SimPhyx (Phase1)", NULL, NULL);
+    window = glfwCreateWindow(windowWidth, windowHeight, "Group 5 | SimPhyx (Phase1)", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
