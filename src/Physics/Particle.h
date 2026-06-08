@@ -22,6 +22,7 @@ namespace Physics{
 			glm::vec3 Position;
 			glm::vec3 Velocity;
 			glm::vec3 Acceleration;
+			float Lifespan;
 			float damping = 0.9f;
 			float mass = 1.f; //kg
 			bool useGravity = false;

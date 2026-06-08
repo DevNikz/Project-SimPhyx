@@ -46,6 +46,10 @@ namespace Physics {
         scale = s;
     }
 
+    glm::vec3 Model::GetScale() {
+        return scale;
+    }
+
     void Model::Position(glm::vec3 p)
     {
         pos = p;

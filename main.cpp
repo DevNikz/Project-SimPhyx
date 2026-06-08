@@ -50,15 +50,12 @@ public:
 
 #endif
 
-std::mt19937 rng(42); // seed for reproducibility
-std::uniform_real_distribution<float> dist(-25.f, 25.f);
-
 PerspectiveCamera thirdPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 PerspectiveCamera firstPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-OrthographicCamera topDown(glm::vec3(0.f, 0.0f, 100.f));
+OrthographicCamera topDown(glm::vec3(0.f, 0.0f, 1.f));
 
-float windowWidth = 700;
-float windowHeight = 700;
+float windowWidth = 800.f;
+float windowHeight = 800.f;
 float lastX = windowWidth / 2.0f;
 float lastY = windowHeight / 2.0f;
 bool firstMouse = true;
@@ -543,18 +540,47 @@ bool AtCenter(Particle& p, ParticleResult& r, float t, float threshold = 5.f) {
 }
 
 struct ParticleConfig {
-    glm::vec3 position = glm::vec3(0.f, -700, 200.f);
+    glm::vec3 position = glm::vec3(0.f, -700, 0.f);
     glm::vec3 velocity = glm::vec3(0.f);
-    glm::vec3 accel = glm::vec3(1.f, 1.f, 0.f);
+    glm::vec3 accel = glm::vec3(1.5f, 1.5f, 0.f);
     float damping = 0.9f;
 };
 
+struct FountainParticle {
+    RenderParticle* rp;
+    Particle* p;
+    float age;
+    bool alive;
+};
+
+int spawnedCount = 0;
+float spawnTimer = 0.f;
+//spawn tick
+const float spawnInterval = 0.15f;
+
+
+std::mt19937 rng(42); // seed for reproducibility
 
 //MAIN
 int main(void)
 {
     constexpr std::chrono::nanoseconds timestep(6944444);
 
+    std::vector<FountainParticle> fountainParticles;
+    std::uniform_real_distribution<float> colorGen(0.1f, 1.f);
+    std::uniform_real_distribution<float> massGen(0.5f, 0.9f);
+    std::uniform_real_distribution<float> dampGen(0.3f, 0.9f);
+    std::uniform_real_distribution<float> forceXGen(-15000.f, 15000.f);
+    std::uniform_real_distribution<float> forceYGen(50000.f, 75000.f);
+    std::uniform_real_distribution<float> lifespanGen(1.f, 10.f);
+    std::uniform_real_distribution<float> scaleGen(2.f, 10.f);
+    DragForceGenerator drag = DragForceGenerator(0.28f, 0.2f);
+
+    int particleCount = 0;
+    cout << "Input Particle Count: ";
+    cin >> particleCount;
+
+    ParticleConfig cfg;
 
     GLFWwindow* window;
     /* Initialize the library */
@@ -563,7 +589,7 @@ int main(void)
     /* Create a windowed mode window and its OpenGL context */
     glfwWindowHint(GLFW_SAMPLES, 8);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, "PC01 Paul Nikko Ragudo", NULL, NULL);
+    window = glfwCreateWindow(windowWidth, windowHeight, "SimPhyx (Phase1)", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -581,12 +607,12 @@ int main(void)
 
     //Camera instances
     topDown.Projection = glm::ortho(
-        -700.f, //L
-        700.f, //R
-        -700.f, //Bottom
-        700.f, //Top
-        -700.f, //Near
-        700.f //Far
+        -800.f, //L
+        800.f, //R
+        -800.f, //Bottom
+        800.f, //Top
+        -800.f, //Near
+        800.f //Far
     );
 
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
@@ -594,7 +620,7 @@ int main(void)
     std::list<RenderParticle*> RenderParticles;
     PhysicsWorld pWorld = PhysicsWorld();
     //auto pWorld = std::make_unique<PhysicsWorld>();
-    float edge = 690.f;
+    float edge = 750.f;
 
     //Skybox skybox("cubemap1_right", "cubemap1_left", "cubemap1_top", "cubemap1_bottom", "cubemap1_front", "cubemap1_back");
     //skybox.InitSky();
@@ -603,18 +629,9 @@ int main(void)
     //Model shipmentObj = Model("Sci-fi Large container", "Sci-fi Container _Base_Color", ".png", "Sci-fi Container _Normal_OpenGL", ".png", "", "", "3D/");
     auto sphereModel = std::make_unique<Model>("sphere", "", "");
     sphereModel->InitModel();
-    sphereModel->Scale(glm::vec3(10.f));
     sphereModel->AssignShader(&unlit);
 
-    int particleCount = 100;
-    ParticleConfig cfg;
-
-    std::mt19937 rng(42); // seed for reproducibility
-    std::uniform_real_distribution<float> colorGen(0.1f, 1.f);
-    std::uniform_real_distribution<float> massGen(0.5f, 0.9f);
-    std::uniform_real_distribution<float> forceXGen(-15000.f, 15000.f);
-    std::uniform_real_distribution<float> forceYGen(50000.f, 75000.f);
-    DragForceGenerator drag = DragForceGenerator(0.14f, 0.1f);
+    
 
     auto spawnParticle = [&]() {
         glm::vec3 color = { colorGen(rng), colorGen(rng), colorGen(rng) };
@@ -625,41 +642,19 @@ int main(void)
         p->Position = cfg.position;
         p->Velocity = cfg.velocity;
         p->Acceleration = cfg.accel;
-        p->damping = cfg.damping;
+        p->damping = dampGen(rng);
         p->mass = massGen(rng);
+        p->Lifespan = lifespanGen(rng);
         p->ApplyForce(force);
 
         pWorld.forceRegistry.Add(p, &drag);
         pWorld.AddParticle(p);
-        RenderParticles.push_back(new RenderParticle(p, sphereModel.get(), color));   
-    };
-
-    for (int i = 0; i < particleCount; ++i) spawnParticle();
-
-    /*
-    for (int i = 0; i < particleCount; i++) {
-        auto p = std::make_unique<Particle>();
-        float red = colorGen(rng);
-        float green = colorGen(rng);
-        float blue = colorGen(rng);
-        float mass = massGen(rng);
-        float forceX = forceXGen(rng);
-        float forceY = forceYGen(rng);
-
-        glm::vec3 force = glm::vec3(forceX, forceY, 0);
-        
-        p->Position = glm::vec3(0.f, -edge, 200.f);
-        p->Velocity = v;
-        p->Acceleration = accel;
-        p->damping = 0.9f;
-        p->mass = mass;
-        p->ApplyForce(force);
-        pWorld->forceRegistry.Add(p.get(), &drag);
-        pWorld->AddParticle(p.get());
-        RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), glm::vec3(red, green, blue));
+        RenderParticle* rp = new RenderParticle(p, sphereModel.get(), color, glm::vec3(scaleGen(rng)));
         RenderParticles.push_back(rp);
-    }
-    */
+        fountainParticles.push_back({ rp, p, 0.f, true});
+
+        ++spawnedCount;
+    };
 
     //Enable anti-aliasing and blend
     glEnable(GL_MULTISAMPLE);
@@ -688,18 +683,40 @@ int main(void)
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
         prev_time = curr_time;
+        float framesec = dur.count() / 1E09f;
+        deltaTime = framesec;
 
-        curr_ns += dur;
+        if (spawnedCount < particleCount) {
+            spawnTimer += framesec;
+            if (spawnTimer >= spawnInterval) {
+                spawnTimer -= spawnInterval;
+                spawnParticle();
+            }
+        }
+
+        for (auto& fp : fountainParticles) {
+            if (!fp.alive) continue;
+
+            fp.age += framesec;
+            if (fp.age >= fp.p->Lifespan) {
+                fp.alive = false;
+
+                // Remove from render list
+                RenderParticles.remove(fp.rp);
+                delete fp.rp;
+                fp.rp = nullptr;
+                fp.p->Destroy();
+            }
+        }
+
+        //curr_ns += dur;
+        curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
         if (curr_ns >= timestep) {
             constexpr float timestep_sec = timestep.count() / (float)(1E09);
             curr_ns -= timestep;
 
             //Physics Update
             pWorld.Update(timestep_sec);
-
-            //if (p1->IsDestroyed() && p2->IsDestroyed() && p3->IsDestroyed()) {
-            //    glfwSetWindowShouldClose(window, true);
-            //}
         }
 
         /* Render here */
@@ -708,8 +725,8 @@ int main(void)
         unlit.use();
         unlit.passOrthoCamera(topDown);
 
-        for (list<RenderParticle*>::iterator i = RenderParticles.begin(); i != RenderParticles.end(); i++) {
-            (*i)->Draw();
+        for (auto* rp : RenderParticles) {
+            rp->Draw();
         }
 
         /*
@@ -738,25 +755,6 @@ int main(void)
 
     sphereModel->DeleteBuffers();
     //std::cout << std::fixed << std::setprecision(2);
-
-    /*
-    std::vector<ParticleResult*> sorted = { &results[0], &results[1], &results[2], &results[3] };
-    std::sort(sorted.begin(), sorted.end(), [](ParticleResult* a, ParticleResult* b) {
-        return a->rank < b->rank;
-        });
-
-    for (auto* r : sorted) {
-        std::cout << "-----------------------------\n";
-        std::cout << "Rank:              #" << r->rank << " - " << r->name << "\n";
-        std::cout << "Final Speed:       " << r->finalSpeed << " m/s\n";
-        std::cout << "Average Velocity:  ("
-            << r->avgVelocity.x << " m/s, "
-            << r->avgVelocity.y << " m/s, "
-            << r->avgVelocity.z << " m/s)\n";
-        std::cout << "Time to Center:    " << r->time << " s\n";
-    }
-    std::cout << "=============================\n";
-    */
 
     //Terminate gl
     glfwTerminate();

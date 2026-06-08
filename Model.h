@@ -48,6 +48,7 @@ namespace Physics {
             //void InitNormals();
 
             void Scale(glm::vec3 s);
+            glm::vec3 GetScale();
             void Position(glm::vec3 p);
             void Color(glm::vec3 c);
 

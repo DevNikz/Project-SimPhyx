@@ -7,6 +7,7 @@ void RenderParticle::Draw()
 	if (PhysicsParticle->IsDestroyed()) return; 
 	RenderModel->Color(Color);
 	RenderModel->Position(PhysicsParticle->Position);
+	RenderModel->Scale(Scale);
 	RenderModel->DrawModel();
 
 }

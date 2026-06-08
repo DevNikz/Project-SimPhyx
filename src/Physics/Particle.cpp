@@ -65,6 +65,7 @@ namespace Physics {
 		this->Position = glm::vec3(0, 0, 0);
 		this->Velocity = glm::vec3(0, 0, 0);
 		this->Acceleration = glm::vec3(0, 0, 0);
+		this->Lifespan = 0.f;
 	}
 }
 
