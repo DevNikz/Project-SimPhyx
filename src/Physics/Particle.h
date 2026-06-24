@@ -13,7 +13,6 @@ namespace Physics{
 			void UpdateVelocity(float deltaTime);
 
 			glm::vec3 accumulatedForce = glm::vec3(0.f, 0.f, 0.f);
-			glm::vec3 gravity = glm::vec3(0.0f, -9.81f, 0.0f);
 	
 		public:
 			void Destroy();
@@ -25,7 +24,9 @@ namespace Physics{
 			float Lifespan;
 			float damping = 0.9f;
 			float mass = 1.f; //kg
-			bool useGravity = false;
+			float radius = 1.f;
+			float restitution = 0.f;
+			bool useGravity = true;
 
 			void Update(float time);
 			void ApplyForce(glm::vec3 force);

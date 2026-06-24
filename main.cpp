@@ -642,7 +642,7 @@ int main(void)
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
 
-        //Spawn Particle per 0.1s tick | Spacebar for pasuing / resuming sim
+        //Spawn Particle per 0.025s tick | Spacebar for pasuing / resuming sim
         if (!simulationPaused) {
             if (spawnedCount < particleCount) {
                 spawnTimer += framesec;
