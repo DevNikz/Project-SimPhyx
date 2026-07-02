@@ -22,6 +22,18 @@ namespace Physics {
         this->shader = s;
     }
 
+    Model::Model() {
+        this->modelName = "";
+        this->texName = "";
+        this->normName = "";
+        this->overlayName = "";
+        this->baseMtl = "";
+
+        this->diffuseTexture = 0;
+        this->normalTexture = 0;
+        this->overlayTexture = 0;
+    }
+
     Model::Model(string _name, string _tex, string _file, string _norm, string _normFile, string _over, string _overFile, string _mtlPath) {
         modelName = "3D/" + _name + ".obj";
         texName = "3D/" + _tex + _file;
@@ -42,12 +54,62 @@ namespace Physics {
         glDrawArrays(GL_TRIANGLES, 0, fullVertexData.size() / 8);
     }
 
-    void Model::Scale(glm::vec3 s) {
-        scale = s;
+    void Model::DrawLine(glm::vec3 start, glm::vec3 end) {
+        float updatedVertices[] = {
+            start.x, start.y, start.z,
+            end.x, end.y, end.z
+        };
+
+        // 2. Bind the VBO and update the data
+        glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(updatedVertices), updatedVertices);
+
+        // 3. Render the line
+        glBindVertexArray(this->vao);
+        glDrawArrays(GL_LINES, 0, 2);
+
+        // 4. Unbind
+        glBindVertexArray(0);
+        this->shader->setVec3("objectColor", 1, color);
     }
 
-    glm::vec3 Model::GetScale() {
-        return scale;
+    void Model::InitLine(const glm::vec3& start, const glm::vec3& end) {
+        float vertices[] = {
+            start.x, start.y, start.z,
+            end.x, end.y, end.z
+        };
+
+        //(SHADERS) Generate vertices and buffers
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+
+        //(POSITIONS) VBO
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        //Using fullvertexdata
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            sizeof(vertices),
+            vertices,
+            GL_DYNAMIC_DRAW
+        );
+        glVertexAttribPointer(
+            0, // Index / buffer index
+            3, // x y z
+            GL_FLOAT, // array of floats
+            GL_FALSE, // if its normalized
+            3 * sizeof(GLfloat), // size of data per vertex
+            (void*)0
+        );
+        glEnableVertexAttribArray(0);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    void Model::Scale(glm::vec3 s) {
+        scale = s;
     }
 
     void Model::Position(glm::vec3 p)

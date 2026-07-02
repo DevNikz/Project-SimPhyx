@@ -4,6 +4,10 @@ using namespace std;
 using namespace Physics;
 
 namespace Physics {
+	void PhysicsWorld::ModifyGravity(float force) {
+		EnableGravity.ModifyGravity(force);
+	}
+
 	void PhysicsWorld::AddParticle(Particle* p) {
 		Particles.push_back(p);
 		if (p->useGravity) forceRegistry.Add(p, &EnableGravity);
@@ -50,6 +54,17 @@ namespace Physics {
 	void PhysicsWorld::GenerateContacts()
 	{
 		Contacts.clear();
+
+		//Cable
+		for (std::list<Cable*>::iterator i = Cables.begin();
+			i != Cables.end();
+			i++)
+		{
+			ParticleContact* contact = (*i)->GetContact();
+			if (contact != nullptr) {
+				Contacts.push_back(contact);
+			}
+		}
 
 		//Link
 		for (std::list<ParticleLink*>::iterator i = Links.begin();

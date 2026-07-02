@@ -50,7 +50,6 @@ public:
 #endif
 
 PerspectiveCamera perspectiveCam(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-//PerspectiveCamera firstPerson(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 OrthographicCamera orthoCam(glm::vec3(0.f, 0.0f, 1.f));
 
 float windowWidth = 800.f;
@@ -233,10 +232,11 @@ void processInput(GLFWwindow* window)
     //Play/pause sim
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
     {
-        if (!spacePressed)
+        if (!spacePressed) {
             simulationPaused = !simulationPaused;
-
-            spacePressed = true;
+            //threader->TogglePaused();
+        }
+        spacePressed = true;
     }
     else spacePressed = false;
 
@@ -506,6 +506,10 @@ struct FountainParticle {
     bool alive;
 };
 
+struct CableConfig {
+    glm::vec3 position;
+};
+
 int spawnedCount = 0;
 float spawnTimer = 0.f;
 //spawn tick
@@ -513,11 +517,22 @@ const float spawnInterval = 0.025f;
 
 
 std::mt19937 rng(42); // seed for reproducibility
+bool spaceWasDown = false;
+
+void PollInput(GLFWwindow* window, PhysicsThreadManager* threader) {
+    //Play/pause sim
+
+    bool spaceDown = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
+    if (spaceDown && !spaceWasDown)      // rising edge only
+        threader->TogglePaused();
+    spaceWasDown = spaceDown;
+}
 
 //MAIN
 int main(void)
 {
-    constexpr std::chrono::nanoseconds timestep(6944444);
+    //constexpr std::chrono::nanoseconds timestep(6944444);
+    constexpr std::chrono::nanoseconds timestep(16666666);
 
     //Random Gen Inits
     std::vector<FountainParticle> fountainParticles;
@@ -528,14 +543,6 @@ int main(void)
     std::uniform_real_distribution<float> forceYGen(100000.f, 200000.f);
     std::uniform_real_distribution<float> lifespanGen(1.f, 10.f);
     std::uniform_real_distribution<float> scaleGen(2.f, 10.f);
-    DragForceGenerator drag = DragForceGenerator(0.14f, 0.1f);
-
-    //Input Particle Count
-    int particleCount = 0;
-    cout << "Input Particle Count: ";
-    cin >> particleCount;
-
-    ParticleConfig cfg;
 
     GLFWwindow* window;
     /* Initialize the library */
@@ -560,10 +567,10 @@ int main(void)
 
     //Camera instances
     orthoCam.Projection = glm::ortho(
-        -START_VIEW_HALF_HEIGHT,
-        START_VIEW_HALF_HEIGHT,
-        -START_VIEW_HALF_HEIGHT,
-        START_VIEW_HALF_HEIGHT,
+        -800.f,
+        800.f,
+        -800.f,
+        800.f,
         -5000.f,
         5000.f
     );
@@ -578,9 +585,10 @@ int main(void)
 
     //Load Shader
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
+    Shader lineShader("Shaders/lineShader.vert", "Shaders/lineShader.frag");
 
     std::list<RenderParticle*> RenderParticles;
-    PhysicsWorld pWorld = PhysicsWorld();
+    auto pWorld = std::make_unique<PhysicsWorld>();
     float edge = 750.f;
 
     //Load Model
@@ -588,28 +596,57 @@ int main(void)
     sphereModel->InitModel();
     sphereModel->AssignShader(&unlit);
 
-    //Lambda for spawning particle
-    auto spawnParticle = [&]() {
-        glm::vec3 color = { colorGen(rng), colorGen(rng), colorGen(rng) };
-        glm::vec3 force = { forceXGen(rng), forceYGen(rng), forceXGen(rng)};
+    std::vector<unique_ptr<Particle>> cableParticles;
+    std::vector<unique_ptr<Model>> lines;
+    std::vector<CableConfig> cableLines;
 
-        /*auto p = std::make_unique<Particle>();*/
-        Particle* p = new Particle();
-        p->Position = cfg.position;
-        p->Velocity = cfg.velocity;
-        p->Acceleration = cfg.accel;
-        p->damping = dampGen(rng);
-        p->mass = massGen(rng);
-        p->Lifespan = lifespanGen(rng);
-        p->ApplyForce(force);
+    const float lineLength = 300.f;
+    const float particleRadius = 35.f;
+    const float seperator = 100.f;
+    const float gravityMod = 15.f;
+    const float mass = 50.f;
+    const float rest = 0.9f;
 
-        pWorld.forceRegistry.Add(p, &drag);
-        pWorld.AddParticle(p);
-        RenderParticle* rp = new RenderParticle(p, sphereModel.get(), color, glm::vec3(scaleGen(rng)));
+    pWorld->ModifyGravity(gravityMod);
+
+    //Spawn Particles
+    for (int i = 0; i < 5; i++) {
+        glm::vec3 color = { 0.5f, 0.f, 0.f };
+        glm::vec3 anchor = glm::vec3(-i * seperator + 300.f, 250.f, 0.f);
+
+        auto p = std::make_unique<Particle>();
+        p->Position = glm::vec3(-i * seperator + 300.f, 200.f, 0.f);
+        p->mass = mass;
+        p->restitution = rest;
+        p->radius = particleRadius;
+        p->useGravity = true;
+        
+        //Renderer
+        RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), color, glm::vec3(particleRadius));
         RenderParticles.push_back(rp);
-        fountainParticles.push_back({ rp, p, 0.f, true});
+        
+        //Cable
+        Cable* cb = new Cable(p.get(), anchor, lineLength, 0.25f);
+        
+        //Cable* cable = new Cable(anchor, mass / 2 + 1.5f, lineLength, 5.f);
+        //pWorld->forceRegistry.Add(p.get(), cable);
 
-        ++spawnedCount;
+        //CableList
+        cableLines.push_back({anchor});
+        pWorld->AddParticle(p.get()); //Add to physics world
+        pWorld->Cables.push_back(cb);
+        cableParticles.push_back(move(p));
+
+        //pWorld->Cables.push_back(chain.get());
+    };
+
+    for (int i = 0; i < 5; i++) {
+        //Line
+        auto line = std::make_unique<Model>();
+        line->InitLine(cableLines[i].position, cableParticles[i]->Position);
+        line->AssignShader(&lineShader);
+        lines.push_back(move(line));
+
     };
 
     //Enable anti-aliasing and blend
@@ -636,39 +673,17 @@ int main(void)
         //Normal Update
         processInput(window);
 
+        
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
         prev_time = curr_time;
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
+        
 
         //Spawn Particle per 0.025s tick | Spacebar for pasuing / resuming sim
         if (!simulationPaused) {
-            if (spawnedCount < particleCount) {
-                spawnTimer += framesec;
-                if (spawnTimer >= spawnInterval) {
-                    spawnTimer -= spawnInterval;
-                    spawnParticle();
-                }
-            }
-            else spawnedCount = 0; //Reset spawned count so it spawns again
-
-            //Destroy particles when its past its lifespan
-            for (auto& fp : fountainParticles) {
-                if (!fp.alive) continue;
-
-                fp.age += framesec;
-                if (fp.age >= fp.p->Lifespan) {
-                    fp.alive = false;
-
-                    // Remove from render list
-                    RenderParticles.remove(fp.rp);
-                    delete fp.rp;
-                    fp.rp = nullptr;
-                    fp.p->Destroy();
-                }
-            }
-
+            
             //Physics Update Here
             curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
             if (curr_ns >= timestep) {
@@ -676,25 +691,32 @@ int main(void)
                 curr_ns -= timestep;
 
                 //Physics Update
-                pWorld.Update(timestep_sec);
+                pWorld->Update(timestep_sec);
             }
+            
         }
 
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         unlit.use();
+        unlit.passOrthoCamera(orthoCam);
 
-        //Switching camera using 1 or 2 keybind
-        if (cameraType == ORTHOGRAPHIC)
-            unlit.passOrthoCamera(orthoCam);
-        else
-            unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
+        ////Switching camera using 1 or 2 keybind
+        //if (cameraType == ORTHOGRAPHIC)
+        //    unlit.passOrthoCamera(orthoCam);
+        //else
+        //    unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
 
         //Draw Particles. Auto disables if its "dead"
-        for (auto* rp : RenderParticles) {
-            rp->Draw();
-        }
+        for (auto* rp : RenderParticles) rp->Draw();
+
+        lineShader.use();
+        lineShader.passOrthoCamera(orthoCam);
+        
+        for (int i = 0; i < lines.size(); i++)
+            lines[i]->DrawLine(cableLines[i].position, cableParticles[i]->Position);
+
     }
 
     sphereModel->DeleteBuffers();

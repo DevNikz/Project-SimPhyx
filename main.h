@@ -19,6 +19,10 @@
 #include "Model.h"
 #include "src/RenderParticle.h"
 #include "src/DragForceGenerator.h"
+#include "src/Misc/PhysicsThreadManager.h"
+
+#include "src/Misc/ThreadScheduler.h"
+#include "src/Cable/Cable.h"
 
 using namespace std;
 using namespace Physics;

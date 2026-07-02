@@ -7,4 +7,9 @@ namespace Physics {
 		glm::vec3 force = Gravity * p->mass;
 		p->ApplyForce(force);
 	}
+
+	void GravityForceGenerator::ModifyGravity(float modifier)
+	{
+		Gravity *= modifier;
+	}
 }

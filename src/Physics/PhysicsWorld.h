@@ -7,6 +7,7 @@
 #include "../Link/Chain.h"
 #include "../Contact/ParticleContact.h"
 #include "../Contact/ContactResolver.h"
+#include "../Cable/Cable.h"
 
 namespace Physics {
 	class PhysicsWorld
@@ -17,10 +18,12 @@ namespace Physics {
 			std::list<ParticleLink*> Links;
 			std::vector<ParticleContact*> Contacts;
 			std::list<Chain*> Chains;
+			std::list<Cable*> Cables;
 
 			void AddParticle(Particle* p);
 			void AddContact(Particle* p1, Particle* p2, float restitution, glm::vec3 contactNormal, float depth);
 			void Update(float time);
+			void ModifyGravity(float force);
 
 		private:
 			void UpdateParticleList();

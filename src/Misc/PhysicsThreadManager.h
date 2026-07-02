@@ -17,71 +17,146 @@ struct ParticleSnapshot {
 
 class PhysicsThreadManager {
 public:
-	using UpdateFn = std::function<void(float deltaTime)>;
+	using SpawnAgeCallback = std::function<void(float /*deltaTime*/)>;
 
-	explicit PhysicsThreadManager(UpdateFn _updateFn, int physicsHz = 60) :
-		updateFn(move(_updateFn)),
-		timestep(chrono::nanoseconds(static_cast<long long>(1e9 / physicsHz))) { }
+	explicit PhysicsThreadManager(PhysicsWorld* _world,
+								  chrono::nanoseconds _timestep) 
+		: world(_world)
+		, timestep(_timestep)
+		, paused(true)
+		, running(false)
+	{}
 
-	void Track(Particle* p) {
-		particles.push_back(p);
-		snapshot.push_back({});
-	}
-
-	void Start() {
-		if (running.load()) return;
-		running.store(true);
-		Thread = std::thread(&PhysicsThreadManager::Loop, this);
-	}
-
-	void Stop() {
-		running.store(false);
-		if (Thread.joinable()) Thread.join();
-	}
-
-	std::vector<ParticleSnapshot> GetSnapshot() const {
-		std::lock_guard<std::mutex> lock(mutex);
-		return snapshot;
-	}
-
-	size_t Count() const { return particles.size(); }
-	~PhysicsThreadManager() { Stop(); }
-
+	// Non-copyable
 	PhysicsThreadManager(const PhysicsThreadManager&) = delete;
 	PhysicsThreadManager& operator=(const PhysicsThreadManager&) = delete;
 
+	~PhysicsThreadManager() { Stop(); }
+
+	void SetSpawnAgeCallback(SpawnAgeCallback cb) { spawnAgeCB = std::move(cb); }
+
+	void Start()
+	{
+		running = true;
+		physicsThread = std::thread(&PhysicsThreadManager::PhysicsLoop, this);
+		renderThread = std::thread(&PhysicsThreadManager::RenderLoop, this);
+	}
+
+	void Stop()
+	{
+		if (!running) return;
+		running = false;
+
+		// Wake the thread if it is sleeping on the condition variable.
+		{
+			std::lock_guard<std::mutex> lk(mutex);
+			paused = false;           // unblock the wait
+		}
+		cv.notify_all();
+
+		if (physicsThread.joinable())  physicsThread.join();
+		if (renderThread.joinable()) renderThread.join();
+	}
+
+	void TogglePaused()
+	{
+		{
+			std::lock_guard<std::mutex> lk(mutex);
+			paused = !paused;
+		}
+		cv.notify_all();
+	}
+
+	void SetPaused(bool pause)
+	{
+		{
+			std::lock_guard<std::mutex> lk(mutex);
+			paused = pause;
+		}
+		cv.notify_all();
+	}
+	
+	bool IsPaused() const { return paused.load(); }
+	std::mutex& ParticleMutex() { return particleMutex; }
+
 private:
-	void Loop() {
+	void PhysicsLoop()
+	{
 		using clock = std::chrono::high_resolution_clock;
-		auto prev = clock::now();
-		std::chrono::nanoseconds acc(0);
+		const float dt = timestep.count() / 1'000'000'000.f;
+		std::chrono::nanoseconds accumulator(0);
 
-		while (running.load()) {
-			auto now = clock::now();
-			acc += chrono::duration_cast<chrono::nanoseconds>(now - prev);
-			prev = now;
+		while (running)
+		{
+			{
+				std::unique_lock<std::mutex> lk(mutex);
+				cv.wait(lk, [this] { return !paused || !running; });
+			}
+			if (!running) break;
 
-			if (acc >= timestep) {
-				const float deltaTime = static_cast<float>(acc.count()) / 1e9f;
-				acc = std::chrono::nanoseconds(0);
-				updateFn(deltaTime);
+			// Reset clock on resume — prevents catch-up spiral
+			auto prev = clock::now();
 
-				std::lock_guard<std::mutex> lock(mutex);
-				for (size_t i = 0; i < particles.size(); ++i) {
-					snapshot[i].position = particles[i]->Position;
-					snapshot[i].velocity = particles[i]->Velocity;
+			while (running && !paused)
+			{
+				auto now = clock::now();
+				accumulator += std::chrono::duration_cast<std::chrono::nanoseconds>(now - prev);
+				prev = now;
+
+				while (accumulator >= timestep)
+				{
+					accumulator -= timestep;
+					world->Update(dt);
 				}
 			}
 
-			this_thread::sleep_for(chrono::milliseconds(1));
+			accumulator = std::chrono::nanoseconds(0); // clear on pause
 		}
 	}
 
-	UpdateFn updateFn;
+	void RenderLoop()
+	{
+		using clock = std::chrono::high_resolution_clock;
+
+		while (running)
+		{
+			{
+				std::unique_lock<std::mutex> lk(mutex);
+				cv.wait(lk, [this] { return !paused || !running; });
+			}
+			if (!running) break;
+
+			auto prev = clock::now();
+
+			while (running && !paused)
+			{
+				auto now = clock::now();
+				float frameDt = std::chrono::duration_cast<std::chrono::nanoseconds>(now - prev).count()
+					/ 1'000'000'000.f;
+				prev = now;
+
+				if (spawnAgeCB)
+				{
+					// Lock particle containers for the duration of the callback
+					std::lock_guard<std::mutex> lk(particleMutex);
+					spawnAgeCB(frameDt);
+				}
+			}
+		}
+	}
+
+	PhysicsWorld* world;
 	std::chrono::nanoseconds timestep;
-	vector<Particle*> particles;
-	mutable mutex mutex;
-	vector<ParticleSnapshot> snapshot;
-	atomic<bool> running{ false };
-	thread Thread;
+	SpawnAgeCallback spawnAgeCB;
+
+	std::atomic<bool> paused;
+	std::atomic<bool> running;
+
+	std::mutex mutex;
+	std::condition_variable cv;
+
+	std::mutex particleMutex;
+	
+	std::thread physicsThread;
+	std::thread renderThread;
 };

@@ -10,5 +10,6 @@ namespace Physics {
 	public:
 		GravityForceGenerator(const glm::vec3 gravity) : Gravity(gravity) {};
 		void UpdateForce(Particle* p, float time) override;
+		void ModifyGravity(float modifier);
 	};
 }

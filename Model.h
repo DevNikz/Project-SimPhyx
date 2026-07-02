@@ -35,20 +35,22 @@ namespace Physics {
             string overlayName;
             string baseMtl;
 
+            Model();
             Model(string _name, string _tex, string _file, string _norm = "", string _normFile = "", string _over = "", string _overFile = "", string _mtlPath = "3D/");
             void InitModel();
+            void InitLine(const glm::vec3& start, const glm::vec3& end);
             void InitDefaultMesh();
             //void InitCustomModel();
             //void InitCube();
             //void DrawCube();
             void DrawModel();
+            void DrawLine(glm::vec3 start, glm::vec3 end);
             void DeleteBuffers();
             //void InitTextures();
             //void InitOverlayMap();
             //void InitNormals();
 
             void Scale(glm::vec3 s);
-            glm::vec3 GetScale();
             void Position(glm::vec3 p);
             void Color(glm::vec3 c);
 

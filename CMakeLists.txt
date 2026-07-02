@@ -81,7 +81,14 @@ set(LINK_SOURCES
 # MISC
 set(MISC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Misc")
 set(MISC_SOURCES 
-	${MISC_DIR}/PhysicsThreadManager.h)
+	${MISC_DIR}/PhysicsThreadManager.h
+	${MISC_DIR}/ThreadScheduler.h)
+
+# CABLE
+set(CABLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Cable")
+set(CABLE_SOURCES 
+	${CABLE_DIR}/Cable.h
+	${CABLE_DIR}/Cable.cpp)
 
 #Get GLFW
 FetchContent_Declare(
@@ -115,7 +122,8 @@ find_package(OpenGL REQUIRED)
 # Add source to this project's executable.
 # Change these to your files
 add_executable (Project-SimPhyx ${MAIN_SRC} ${GLAD_SRC} ${BASE_SOURCES} ${PHYS_SOURCES}
-				 ${SPRINGS_SOURCES} ${LINK_SOURCES} ${CONTACTS_SOURCES} ${MISC_SOURCES})
+				 ${SPRINGS_SOURCES} ${LINK_SOURCES} ${CONTACTS_SOURCES} ${MISC_SOURCES}
+				 ${CABLE_SOURCES})
 
 target_include_directories(Project-SimPhyx PRIVATE
     ${glfw_SOURCE_DIR}/include
