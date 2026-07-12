@@ -66,7 +66,7 @@ bool perspectiveSwitch = false;
 bool cameraSwitch = false;
 bool tankMoved = false;
 
-float orbitYawOffset = 180.f;
+float orbitYawOffset = -180.f;
 float orbitPitch = 25.f;
 const float sensitivity = 0.1f;
 
@@ -90,8 +90,6 @@ float firstPersonFOV = 45.f;
 const float CAM_DIST = 8.f;
 const float CAM_HEIGHT = 2.5f;
 const float CAM_SIDE = 0.0f;
-
-glm::vec3 orthoCamPosition = glm::vec3(0.f, 60.f, 0.f);
 
 class PointLight
 {
@@ -200,10 +198,10 @@ void updateOrbitCameras()
     perspectiveCam.Right = glm::normalize(glm::cross(perspectiveCam.Front, perspectiveCam.WorldUp));
     perspectiveCam.Up = glm::normalize(glm::cross(perspectiveCam.Right, perspectiveCam.Front));
 
-    orthoCam.Position = perspectiveCam.Position;
-    orthoCam.Front = perspectiveCam.Front;
-    orthoCam.Right = perspectiveCam.Right;
-    orthoCam.Up = perspectiveCam.Up;
+    //orthoCam.Position = perspectiveCam.Position;
+    //orthoCam.Front = perspectiveCam.Front;
+    //orthoCam.Right = perspectiveCam.Right;
+    //orthoCam.Up = perspectiveCam.Up;
 }
 
 void processInput(GLFWwindow* window)
@@ -230,54 +228,44 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
 
     //Play/pause sim
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    /*if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
     {
         if (!spacePressed) {
             simulationPaused = !simulationPaused;
-            //threader->TogglePaused();
         }
         spacePressed = true;
     }
-    else spacePressed = false;
+    else spacePressed = false;*/
 
     //Ortho or perspective
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
         cameraType = ORTHOGRAPHIC;
+        //orthoCam.ResetOrthoCam();
+        //updateOrbitCameras();
+    }
 
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
         cameraType = PERSPECTIVE;
 
-    //Point light
-    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
-    {
-        if (!fPress)
-        {
-            lightIntensity = (lightIntensity + 1) % 3;
-            pointLight.strength = lightIntensities[lightIntensity];
-        }
-        fPress = true;
-    }
-    else fPress = false;
-
-
     //Orbit cam
     const float orbitSpeed = 60.f;
 
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        orbitYawOffset -= orbitSpeed * deltaTime;
+    if (cameraType == PERSPECTIVE) {
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            orbitYawOffset -= orbitSpeed * deltaTime;
 
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        orbitYawOffset += orbitSpeed * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            orbitYawOffset += orbitSpeed * deltaTime;
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        orbitPitch += orbitSpeed * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            orbitPitch += orbitSpeed * deltaTime;
 
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        orbitPitch -= orbitSpeed * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            orbitPitch -= orbitSpeed * deltaTime;
 
-    if (orbitPitch < -85.f) orbitPitch = -85.f;
-    if (orbitPitch > 85.f) orbitPitch = 85.f;
-
+        if (orbitPitch < -85.f) orbitPitch = -85.f;
+        if (orbitPitch > 85.f) orbitPitch = 85.f;
+    }
     updateOrbitCameras();
 }
 
@@ -519,30 +507,13 @@ const float spawnInterval = 0.025f;
 std::mt19937 rng(42); // seed for reproducibility
 bool spaceWasDown = false;
 
-void PollInput(GLFWwindow* window, PhysicsThreadManager* threader) {
-    //Play/pause sim
-
-    bool spaceDown = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
-    if (spaceDown && !spaceWasDown)      // rising edge only
-        threader->TogglePaused();
-    spaceWasDown = spaceDown;
-}
-
 //MAIN
 int main(void)
 {
     //constexpr std::chrono::nanoseconds timestep(6944444);
-    constexpr std::chrono::nanoseconds timestep(16666666);
 
-    //Random Gen Inits
-    std::vector<FountainParticle> fountainParticles;
-    std::uniform_real_distribution<float> colorGen(0.1f, 1.f);
-    std::uniform_real_distribution<float> massGen(2.5f, 5.f);
-    std::uniform_real_distribution<float> dampGen(0.3f, 0.9f);
-    std::uniform_real_distribution<float> forceXGen(-50000.f, 50000.f);
-    std::uniform_real_distribution<float> forceYGen(100000.f, 200000.f);
-    std::uniform_real_distribution<float> lifespanGen(1.f, 10.f);
-    std::uniform_real_distribution<float> scaleGen(2.f, 10.f);
+    //60fps Physics Update
+    constexpr std::chrono::nanoseconds timestep(16666666);
 
     GLFWwindow* window;
     /* Initialize the library */
@@ -551,7 +522,7 @@ int main(void)
     /* Create a windowed mode window and its OpenGL context */
     glfwWindowHint(GLFW_SAMPLES, 8);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, "Group 5 | SimPhyx (Phase1)", NULL, NULL);
+    window = glfwCreateWindow(windowWidth, windowHeight, "Group 5 | SimPhyx (Phase2)", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -566,6 +537,7 @@ int main(void)
     //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     //Camera instances
+    //Orthographic Projection
     orthoCam.Projection = glm::ortho(
         -800.f,
         800.f,
@@ -575,6 +547,7 @@ int main(void)
         5000.f
     );
 
+    //Perspective projection
     perspectiveCam.Projection = glm::perspective(
         glm::radians(PERSPECTIVE_FOV),
         windowWidth / windowHeight,
@@ -583,13 +556,19 @@ int main(void)
     );
     updateOrbitCameras();
 
+    //Update / Reset orthocam
+    orthoCam.Position = perspectiveCam.Position;
+    orthoCam.Front = perspectiveCam.Front;
+    orthoCam.Right = perspectiveCam.Right;
+    orthoCam.Up = perspectiveCam.Up;
+
     //Load Shader
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
     Shader lineShader("Shaders/lineShader.vert", "Shaders/lineShader.frag");
 
     std::list<RenderParticle*> RenderParticles;
     auto pWorld = std::make_unique<PhysicsWorld>();
-    float edge = 750.f;
+    float edge = 750.f; //edge of the window
 
     //Load Model
     auto sphereModel = std::make_unique<Model>("sphere", "", "");
@@ -606,42 +585,38 @@ int main(void)
     const float gravityMod = 15.f;
     const float mass = 50.f;
     const float rest = 0.9f;
+    const float applyForce = -80000.f;
 
     pWorld->ModifyGravity(gravityMod);
 
     //Spawn Particles
     for (int i = 0; i < 5; i++) {
-        glm::vec3 color = { 0.5f, 0.f, 0.f };
-        glm::vec3 anchor = glm::vec3(-i * seperator + 300.f, 250.f, 0.f);
+        glm::vec3 color = { 0.5f, 0.f, 0.f }; //red color
+        glm::vec3 anchor = glm::vec3(-i * seperator + 300.f, 250.f, 0.f); // anchor point for the cable
 
         auto p = std::make_unique<Particle>();
-        p->Position = glm::vec3(-i * seperator + 300.f, 200.f, 0.f);
-        p->mass = mass;
-        p->restitution = rest;
-        p->radius = particleRadius;
-        p->useGravity = true;
+        p->Position = glm::vec3(-i * seperator + 300.f, 200.f, 0.f); // anchor particle slightly below the cable
+        p->mass = mass; // mass is 50kg
+        p->restitution = rest; // restitution is 0.9f
+        p->radius = particleRadius; // radius is around 35px
+        p->useGravity = true; // particles have gravity
         
         //Renderer
         RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), color, glm::vec3(particleRadius));
         RenderParticles.push_back(rp);
         
         //Cable
-        Cable* cb = new Cable(p.get(), anchor, lineLength, 0.25f);
-        
-        //Cable* cable = new Cable(anchor, mass / 2 + 1.5f, lineLength, 5.f);
-        //pWorld->forceRegistry.Add(p.get(), cable);
+        Cable* cb = new Cable(p.get(), anchor, lineLength); // Cable has no restitution
 
         //CableList
-        cableLines.push_back({anchor});
+        cableLines.push_back({anchor}); // Push to vector for render update later (Anchor Point Positions)
         pWorld->AddParticle(p.get()); //Add to physics world
-        pWorld->Cables.push_back(cb);
-        cableParticles.push_back(move(p));
-
-        //pWorld->Cables.push_back(chain.get());
+        pWorld->Cables.push_back(cb); // Push to physics world to update contacts
+        cableParticles.push_back(move(p)); // Push to vector for render update later (Particle Point Positions
     };
 
     for (int i = 0; i < 5; i++) {
-        //Line
+        //Initiate Line and push it to a vector
         auto line = std::make_unique<Model>();
         line->InitLine(cableLines[i].position, cableParticles[i]->Position);
         line->AssignShader(&lineShader);
@@ -664,26 +639,27 @@ int main(void)
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
+        //Normal Update
+        processInput(window);
+
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            cableParticles[0].get()->ApplyForce(glm::vec3(applyForce, 0.f, 0.f));
+        }
+
         /* Poll for and process events */
         glfwPollEvents();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
-
-        //Normal Update
-        processInput(window);
-
         
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
         prev_time = curr_time;
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
-        
 
         //Spawn Particle per 0.025s tick | Spacebar for pasuing / resuming sim
         if (!simulationPaused) {
-            
             //Physics Update Here
             curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
             if (curr_ns >= timestep) {
@@ -693,27 +669,29 @@ int main(void)
                 //Physics Update
                 pWorld->Update(timestep_sec);
             }
-            
         }
 
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        //Switching camera using 1 or 2 keybind
         unlit.use();
-        unlit.passOrthoCamera(orthoCam);
+        if (cameraType == ORTHOGRAPHIC)
+            unlit.passOrthoCamera(orthoCam);
+        else
+            unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
 
-        ////Switching camera using 1 or 2 keybind
-        //if (cameraType == ORTHOGRAPHIC)
-        //    unlit.passOrthoCamera(orthoCam);
-        //else
-        //    unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
-
-        //Draw Particles. Auto disables if its "dead"
+        //Draw Particles.
         for (auto* rp : RenderParticles) rp->Draw();
 
+        //Switching camera (Line Shader)
         lineShader.use();
-        lineShader.passOrthoCamera(orthoCam);
+        if (cameraType == ORTHOGRAPHIC)
+            lineShader.passOrthoCamera(orthoCam);
+        else
+            lineShader.passPerspectiveCamera(perspectiveCam, orbitTarget);
         
+        //Render Line
         for (int i = 0; i < lines.size(); i++)
             lines[i]->DrawLine(cableLines[i].position, cableParticles[i]->Position);
 

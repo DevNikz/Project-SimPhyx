@@ -52,5 +52,6 @@ namespace Physics {
         void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true);
 
         void updateCameraVectors();
+        void ResetOrthoCam();
 	};
 }

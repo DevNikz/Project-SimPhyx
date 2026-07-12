@@ -26,3 +26,14 @@
 
 using namespace std;
 using namespace Physics;
+
+/*
+std::vector<FountainParticle> fountainParticles;
+    std::uniform_real_distribution<float> colorGen(0.1f, 1.f);
+    std::uniform_real_distribution<float> massGen(2.5f, 5.f);
+    std::uniform_real_distribution<float> dampGen(0.3f, 0.9f);
+    std::uniform_real_distribution<float> forceXGen(-50000.f, 50000.f);
+    std::uniform_real_distribution<float> forceYGen(100000.f, 200000.f);
+    std::uniform_real_distribution<float> lifespanGen(1.f, 10.f);
+    std::uniform_real_distribution<float> scaleGen(2.f, 10.f);
+*/

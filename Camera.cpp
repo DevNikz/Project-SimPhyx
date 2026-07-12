@@ -84,4 +84,12 @@ namespace Physics {
         Up = glm::normalize(glm::cross(Right, Front));
         */
     }
+    void Camera::ResetOrthoCam()
+    {
+        this->Position = glm::vec3(0.f, 0.0f, 1.f);
+        this->Up = glm::vec3(0.f, 1.0f, 0.0f);
+        this->Yaw = Physics::YAW;
+        this->Pitch = Physics::PITCH;
+        updateCameraVectors();
+    }
 }
