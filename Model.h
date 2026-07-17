@@ -3,6 +3,7 @@
 #include <vector>
 #include "Shader.h"
 #include "tiny_obj_loader.h"
+#include "stb_image.h"
 using namespace std;
 
 namespace Physics {
@@ -25,6 +26,7 @@ namespace Physics {
             glm::vec3 scale = glm::vec3(1.f);
             glm::vec3 pos = glm::vec3(1.f);
             glm::vec3 color = glm::vec3(1.f);
+            glm::vec3 rotation = glm::vec3(0.f);
 
             Physics::Shader* shader;
 
@@ -40,21 +42,25 @@ namespace Physics {
             void InitModel();
             void InitLine(const glm::vec3& start, const glm::vec3& end);
             void InitDefaultMesh();
+            void InitQuad();
             //void InitCustomModel();
             //void InitCube();
             //void DrawCube();
+            void DrawModelHub();
             void DrawModel();
             void DrawLine(glm::vec3 start, glm::vec3 end);
+            void DrawQuad();
             void DeleteBuffers();
-            //void InitTextures();
+            void InitModelTex();
             //void InitOverlayMap();
             //void InitNormals();
 
             void Scale(glm::vec3 s);
             void Position(glm::vec3 p);
             void Color(glm::vec3 c);
+            void Rotation(glm::vec3 r);
 
-            //GLuint GetDiffuse();
+            GLuint GetDiffuse();
             //GLuint GetNormal();
             //GLuint GetOverlay();
             Physics::Shader* GetShader();

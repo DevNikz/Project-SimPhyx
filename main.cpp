@@ -4,6 +4,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include <memory>
+#include <iomanip>
+#include <imgui_impl_glfw.h>
 
 using namespace std;
 
@@ -204,72 +206,6 @@ void updateOrbitCameras()
     //orthoCam.Up = perspectiveCam.Up;
 }
 
-void processInput(GLFWwindow* window)
-{
-    static bool onePress = false;
-    static bool twoPress = false;
-    static bool fPress = false;
-    static bool spacePressed = false;
-    static int lightIntensity = 0;
-    static CameraType prevMode = ORTHOGRAPHIC;
-
-    const float lightIntensities[] = { 2.5f, 5.f, 7.5f };
-
-    const float moveSpeed = 20.f;
-    const float turnSpeed = 90.f;
-
-    const float fpTurnSpeed = 60.f;
-    const float fpMoveSpeed = 10.f;
-
-    const float panSpeed = 20.f;
-
-    //Exit Game
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-
-    //Play/pause sim
-    /*if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-    {
-        if (!spacePressed) {
-            simulationPaused = !simulationPaused;
-        }
-        spacePressed = true;
-    }
-    else spacePressed = false;*/
-
-    //Ortho or perspective
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
-        cameraType = ORTHOGRAPHIC;
-        //orthoCam.ResetOrthoCam();
-        //updateOrbitCameras();
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
-        cameraType = PERSPECTIVE;
-
-    //Orbit cam
-    const float orbitSpeed = 60.f;
-
-    if (cameraType == PERSPECTIVE) {
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            orbitYawOffset -= orbitSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            orbitYawOffset += orbitSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            orbitPitch += orbitSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            orbitPitch -= orbitSpeed * deltaTime;
-
-        if (orbitPitch < -85.f) orbitPitch = -85.f;
-        if (orbitPitch > 85.f) orbitPitch = 85.f;
-    }
-    updateOrbitCameras();
-}
-
-
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -456,50 +392,23 @@ void Skybox::InitSky() {
     glEnableVertexAttribArray(0);
 }
 #endif
-struct ParticleResult {
-    std::string name;
-    glm::vec3 color;
-    int rank = 0;
-    float finalSpeed = 0.f;
-    glm::vec3 avgVelocity = glm::vec3(0.f);
-    float time = 0.f;
-    bool finished = false;
-
-    glm::vec3 startPos;
-    float elapsedTime = 0.f;
-};
-
-bool AtCenter(Particle& p, ParticleResult& r, float t, float threshold = 5.f) {
-    r.elapsedTime += t;
-
-    if (glm::length(glm::vec2(p.Position.x, p.Position.y)) <= threshold) {
-        p.Position.x = 0.f;
-        p.Position.y = 0.f;
-        return true;
-    }
-    else return false;
-}
 
 struct ParticleConfig {
-    glm::vec3 position = glm::vec3(0.f, -700, 0.f);
-    glm::vec3 velocity = glm::vec3(0.f);
-    glm::vec3 accel = glm::vec3(1.f, 1.f, 1.f);
-    float damping = 0.9f;
+    float angleOffsetDeg;
+    glm::vec3 color;
+    string colorName;
+    string reward;
 };
 
-struct FountainParticle {
-    RenderParticle* rp;
-    Particle* p;
-    float age;
-    bool alive;
+std::vector<ParticleConfig> particles
+{
+    {90.f, glm::vec3(1.f, 0.1f, 0.1f), "Red", "$5 Steam Gift Card"},
+    {162.f, glm::vec3(1.f, 0.55f, 0.05f), "Orange", "RTX 5090"},
+    {234.0f, glm::vec3(0.15f, 0.85f, 0.15f), "Green", "2x32 GB Ram"},
+    {306.0f, glm::vec3(0.15f, 0.35f, 1.0f), "Blue", "Free Spin"},
+    {18.0f, glm::vec3(0.65f, 0.10f, 0.85f), "Purple", "JACKPOT - Ace Combat 8: Wings of Thieve"},
 };
 
-struct CableConfig {
-    glm::vec3 position;
-};
-
-int spawnedCount = 0;
-float spawnTimer = 0.f;
 //spawn tick
 const float spawnInterval = 0.025f;
 
@@ -507,10 +416,213 @@ const float spawnInterval = 0.025f;
 std::mt19937 rng(42); // seed for reproducibility
 bool spaceWasDown = false;
 
+static const int numParticles = 5;
+static const float mass = 50.f;
+static const float wheelRad = 500.0f;
+
+static const float spinGain = 5.0f;
+static const float maxClamp = 25.0f;
+
+static const float friction = 0.5f;
+static const float visDamp = 0.1f;
+static const float stopEps = 0.02f;
+
+float spinForceMag = 0.f;
+static const float brakeStrength = 5.f;
+
+Particle* hubParticle = nullptr;
+float mainWheelOrbitRad = 0.f;
+
+bool braking = false;
+bool wasSpinning = false;
+bool isSnapping = false;
+float snapTargetRotZ = 0.f;
+static const float snapSpeed = glm::radians(45.f);
+
+//Result
+bool stopped = false;
+int rewardIndex = -1;
+
+int GetTopIndex(float hubRotationRad)
+{
+    int best = 0;
+    float bestY = -1e9f;
+    for (int i = 0; i < (int)particles.size(); i++)
+    {
+        float angleRad = glm::radians(particles[i].angleOffsetDeg) + hubRotationRad;
+        float y = sinf(angleRad); //world "up" component
+        if (y > bestY) { bestY = y; best = i; }
+    }
+    return best;
+}
+
+void DisplayMenu() {
+    cout << "==============================================" << endl;
+    cout << "               ROULETTE                       " << endl;
+    cout << "==============================================" << endl;
+    for (int i = 0; i < particles.size(); i++) {
+        cout << setw(8) << left << particles[i].colorName << " = " << particles[i].reward << endl;
+    }
+    cout << "\n----------------------------------------------\n";
+    cout << "Apply Force: ";
+    cin >> spinForceMag;
+}
+
+void ShowFPSOverlay(bool* p_open, Particle* hp) {
+    static int corner = 0;
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration
+        | ImGuiWindowFlags_AlwaysAutoResize
+        | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoFocusOnAppearing
+        | ImGuiWindowFlags_NoNav;
+
+    if (corner != -1) {
+        const float pad = 10.f;
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImVec2 pos = viewport->WorkPos;
+        ImVec2 size = viewport->Size;
+        ImVec2 windowPos, windowPosPivot;
+
+        windowPos.x = (corner & 1) ? (pos.x + size.x - pad) : (pos.x + pad);
+        windowPos.y = (corner & 2) ? (pos.y + size.y - pad) : (pos.y + pad);
+        windowPosPivot.x = (corner & 1) ? 1.0f : 0.0f;
+        windowPosPivot.y = (corner & 2) ? 1.0f : 0.0f;
+
+        ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
+        windowFlags |= ImGuiWindowFlags_NoMove;
+    }
+
+    ImGui::SetNextWindowBgAlpha(0.35f);
+
+    if (ImGui::Begin("FPS Overlay", p_open, windowFlags)) {
+
+        ImGui::SeparatorText("Debug");
+        ImGui::Text("FPS: %.1f", io.Framerate);
+        ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);
+
+        ImGui::SeparatorText("Input");
+        ImGui::Text("Braking: %d", braking);
+        ImGui::Text("Stopped: %d", stopped);
+        ImGui::Text("Speed: %.2f", hp->AngularVelocity.z);
+
+        /*ImGui::SeparatorText("Particle");
+        ImGui::Text("Position: (%.1f, %.1f, %.1f)", p->Position.x, p->Position.y, p->Position.z);
+        ImGui::Text("Rotation: (%.1f, %.1f, %.1f)", p->Rotation.x, p->Rotation.y, p->Rotation.z);*/
+        
+
+        //if (ImGui::BeginChild("Particle"), ImVec2(0, 0), ImGuiChildFlags_Borders) {
+        //    ImGui::Text("Rotation: (%.1f, %.1f, %.1f)", rot.x, rot.y, rot.z);
+        //}
+        //ImGui::EndChild();
+
+        /*
+        if (ImGui::IsMousePosValid()) {
+            ImGui::Text("Mouse: (%.1f, %.1f)", io.MousePos.x, io.MousePos.y);
+        }
+        else {
+            ImGui::Text("Mouse: <off screen>");
+        }
+        */
+
+        if (ImGui::BeginPopupContextWindow()) {
+            if (ImGui::MenuItem("Top-left", nullptr, corner == 0)) corner = 0;
+            if (ImGui::MenuItem("Top-right", nullptr, corner == 1)) corner = 1;
+            if (ImGui::MenuItem("Bottom-left", nullptr, corner == 2)) corner = 2;
+            if (ImGui::MenuItem("Bottom-right", nullptr, corner == 3)) corner = 3;
+            if (p_open && ImGui::MenuItem("Close")) corner = -1;
+            ImGui::EndPopup();
+        }
+
+        
+    }
+
+    ImGui::End();
+}
+
+void processInput(GLFWwindow* window)
+{
+    static bool onePress = false;
+    static bool twoPress = false;
+    static bool fPress = false;
+    static bool spacePressed = false;
+    static int lightIntensity = 0;
+    static CameraType prevMode = ORTHOGRAPHIC;
+
+    const float lightIntensities[] = { 2.5f, 5.f, 7.5f };
+
+    const float moveSpeed = 20.f;
+    const float turnSpeed = 90.f;
+
+    const float fpTurnSpeed = 60.f;
+    const float fpMoveSpeed = 10.f;
+
+    const float panSpeed = 20.f;
+
+    //Exit Game
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    //Play/pause sim
+    bool spaceDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+    if (spaceDown) {
+        if (!spacePressed) {
+            bool isSpinning = hubParticle && fabsf(hubParticle->AngularVelocity.z) > stopEps;
+            if (isSpinning) {
+                braking = true;
+            }
+            else if (hubParticle) {
+                int top = GetTopIndex(hubParticle->Rotation.z);
+                float angleRad = glm::radians(particles[top].angleOffsetDeg) + hubParticle->Rotation.z;
+
+                glm::vec3 tangent(-sinf(angleRad), cosf(angleRad), 0.f);
+                glm::vec3 localOffset = mainWheelOrbitRad * glm::vec3(cosf(angleRad), sinf(angleRad), 0.f);
+
+                float force = spinForceMag * spinGain;
+                hubParticle->AddTorqueAtPoint(tangent * force, localOffset);
+            }
+        }
+        spacePressed = true;
+    }
+    else {
+        spacePressed = false;
+        braking = false;
+    }
+
+    //Ortho or perspective
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+        cameraType = ORTHOGRAPHIC;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+        cameraType = PERSPECTIVE;
+
+    //Orbit cam
+    const float orbitSpeed = 60.f;
+
+    if (cameraType == PERSPECTIVE) {
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            orbitYawOffset -= orbitSpeed * deltaTime;
+
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            orbitYawOffset += orbitSpeed * deltaTime;
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            orbitPitch += orbitSpeed * deltaTime;
+
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            orbitPitch -= orbitSpeed * deltaTime;
+
+        if (orbitPitch < -85.f) orbitPitch = -85.f;
+        if (orbitPitch > 85.f) orbitPitch = 85.f;
+    }
+    updateOrbitCameras();
+}
+
 //MAIN
 int main(void)
 {
-    //constexpr std::chrono::nanoseconds timestep(6944444);
+    DisplayMenu();
 
     //60fps Physics Update
     constexpr std::chrono::nanoseconds timestep(16666666);
@@ -521,8 +633,9 @@ int main(void)
 
     /* Create a windowed mode window and its OpenGL context */
     glfwWindowHint(GLFW_SAMPLES, 8);
+    //glfwWindowHint(GLFW_FLOATING, true);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, "Group 5 | SimPhyx (Phase2)", NULL, NULL);
+    window = glfwCreateWindow(windowWidth, windowHeight, "PC02 Ragudo", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -533,8 +646,8 @@ int main(void)
     glfwMakeContextCurrent(window);
     gladLoadGL();
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
     //Camera instances
     //Orthographic Projection
@@ -556,17 +669,15 @@ int main(void)
     );
     updateOrbitCameras();
 
-    //Update / Reset orthocam
-    orthoCam.Position = perspectiveCam.Position;
-    orthoCam.Front = perspectiveCam.Front;
-    orthoCam.Right = perspectiveCam.Right;
-    orthoCam.Up = perspectiveCam.Up;
-
     //Load Shader
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
+    Shader lit("Shaders/lit.vert", "Shaders/lit.frag");
     Shader lineShader("Shaders/lineShader.vert", "Shaders/lineShader.frag");
+    Shader circleShader("Shaders/circleShader.vert", "Shaders/circleShader.frag");
+    Shader billboardShader("Shaders/bbShader.vert", "Shaders/bbShader.frag");
 
     std::list<RenderParticle*> RenderParticles;
+    std::list<RenderParticle*> mRender;
     auto pWorld = std::make_unique<PhysicsWorld>();
     float edge = 750.f; //edge of the window
 
@@ -575,66 +686,78 @@ int main(void)
     sphereModel->InitModel();
     sphereModel->AssignShader(&unlit);
 
-    std::vector<unique_ptr<Particle>> cableParticles;
-    std::vector<unique_ptr<Model>> lines;
-    std::vector<CableConfig> cableLines;
+    auto hubModel = std::make_unique<Model>("sphere", "", "");
+    hubModel->InitModel();
+    hubModel->AssignShader(&unlit);
 
-    const float lineLength = 300.f;
-    const float particleRadius = 35.f;
-    const float seperator = 100.f;
-    const float gravityMod = 15.f;
-    const float mass = 50.f;
+    Quad quad;
+    quad.Init();
+    quad.LoadDiffuse("3D/roulette.png");
+    quad.Position(glm::vec3(0.f, 0.f, -10.f));
+    quad.Scale(glm::vec3(wheelRad * 2));
+    quad.Rotation(glm::vec3(0.f));
+    quad.AssignShader(&lit);
+
+    std::vector<unique_ptr<Particle>> rouletteParticles;
+
+    const float particleRadius = 50.f;
+    const float gravityMod = 1.f;
     const float rest = 0.9f;
-    const float applyForce = -80000.f;
 
-    pWorld->ModifyGravity(gravityMod);
+    //pWorld->ModifyGravity(gravityMod);
+    const float wheelOrbitRadius = wheelRad * 1.f;
+    mainWheelOrbitRad = wheelOrbitRadius;
+
+    //HUB
+    auto hp = std::make_unique<Particle>();
+    hp->Position = glm::vec3(0.f, 0.f, 0.f);
+    hp->mass = 10.0f;
+    hp->restitution = rest;
+    hp->radius = wheelRad;
+    hp->useGravity = false;
+
+    RenderParticle* rp = new RenderParticle(hp.get(), hubModel.get(), glm::vec3(0.25f, 0.f, 0.f), glm::vec3(wheelRad));
+    mRender.push_back(rp);
+    pWorld->AddParticle(hp.get());
+
+    //Center Particle
+    hubParticle = hp.get();
 
     //Spawn Particles
     for (int i = 0; i < 5; i++) {
-        glm::vec3 color = { 0.5f, 0.f, 0.f }; //red color
-        glm::vec3 anchor = glm::vec3(-i * seperator + 300.f, 250.f, 0.f); // anchor point for the cable
-
         auto p = std::make_unique<Particle>();
-        p->Position = glm::vec3(-i * seperator + 300.f, 200.f, 0.f); // anchor particle slightly below the cable
-        p->mass = mass; // mass is 50kg
-        p->restitution = rest; // restitution is 0.9f
-        p->radius = particleRadius; // radius is around 35px
-        p->useGravity = true; // particles have gravity
-        
-        //Renderer
-        RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), color, glm::vec3(particleRadius));
+        p->Position = glm::vec3(0.f, 0.f, 1.f);
+        p->Rotation = glm::vec3(0.f);
+        p->mass = mass;
+        p->radius = particleRadius * 0.5f;
+        p->useGravity = false;
+
+        float angleRad = glm::radians(particles[i].angleOffsetDeg) + p->Rotation.z;
+        p->Position = p->Position + mainWheelOrbitRad * glm::vec3(cosf(angleRad), sinf(angleRad), 0.f);
+
+        RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), particles[i].color, glm::vec3(p->radius));
         RenderParticles.push_back(rp);
-        
-        //Cable
-        Cable* cb = new Cable(p.get(), anchor, lineLength); // Cable has no restitution
+        rouletteParticles.push_back(move(p));
+    }
 
-        //CableList
-        cableLines.push_back({anchor}); // Push to vector for render update later (Anchor Point Positions)
-        pWorld->AddParticle(p.get()); //Add to physics world
-        pWorld->Cables.push_back(cb); // Push to physics world to update contacts
-        cableParticles.push_back(move(p)); // Push to vector for render update later (Particle Point Positions
-    };
-
-    for (int i = 0; i < 5; i++) {
-        //Initiate Line and push it to a vector
-        auto line = std::make_unique<Model>();
-        line->InitLine(cableLines[i].position, cableParticles[i]->Position);
-        line->AssignShader(&lineShader);
-        lines.push_back(move(line));
-
-    };
+    //IMGUI
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    ImGui_ImplGlfw_InitForOpenGL(window, true);          // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+    ImGui_ImplOpenGL3_Init();
 
     //Enable anti-aliasing and blend
     glEnable(GL_MULTISAMPLE);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBlendEquation(GL_FUNC_ADD);
+    //glBlendEquation(GL_FUNC_ADD);
 
     using clock = std::chrono::high_resolution_clock;
     auto curr_time = clock::now();
     auto prev_time = curr_time;
     std::chrono::nanoseconds curr_ns(0);
+
+    bool endGame = false;
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -642,15 +765,39 @@ int main(void)
         //Normal Update
         processInput(window);
 
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            cableParticles[0].get()->ApplyForce(glm::vec3(applyForce, 0.f, 0.f));
+        //IMGUI
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        static bool show_overlay = true;
+        if (show_overlay) {
+            ShowFPSOverlay(&show_overlay, hp.get());
         }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         /* Poll for and process events */
         glfwPollEvents();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
+
+        if (stopped) {
+            stopped = false;
+            rewardIndex = GetTopIndex(hp->Rotation.z);
+
+            cout << "\n----------------------------------------------\n";
+            cout << "CONGRATULATIONS!" << std::endl;
+            cout << "Press ENTER to redeem your reward!";
+            cout.flush();
+            endGame = true;
+        }
+
+        if (endGame) {
+            if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS)
+                glfwSetWindowShouldClose(window, true);
+        }
         
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
@@ -668,23 +815,97 @@ int main(void)
 
                 //Physics Update
                 pWorld->Update(timestep_sec);
+
+                float& av = hp->AngularVelocity.z;
+                if (av != 0.f) {
+                    float decel = braking ? brakeStrength : friction;
+                    float sign = (av > 0.f) ? 1.f : -1.f;
+                    av -= sign * decel * timestep_sec;
+                    if (sign * av < 0.f) av = 0.f;
+
+                    av *= (1.f - visDamp * timestep_sec);
+
+                    if (fabsf(av) < stopEps) av = 0.f;
+                }
+                av = glm::clamp(av, -maxClamp, maxClamp);
+
+                bool spinningNow = fabsf(av) > stopEps;
+                if (wasSpinning && !spinningNow && !isSnapping) {
+                    int top = GetTopIndex(hp->Rotation.z);
+                    float currentAngleRad = glm::radians(particles[top].angleOffsetDeg) + hp->Rotation.z;
+
+                    //Shortest signed distance from currentAngleRad to "top" (90 deg / +Y)
+                    float delta = glm::radians(90.f) - currentAngleRad;
+                    delta = atan2f(sinf(delta), cosf(delta));
+
+                    snapTargetRotZ = hp->Rotation.z + delta;
+                    isSnapping = true;
+                }
+                wasSpinning = spinningNow;
+
+                if (isSnapping) {
+                    float diff = snapTargetRotZ - hp->Rotation.z;
+                    diff = atan2f(sinf(diff), cosf(diff)); //wrap to [-pi, pi]
+
+                    float step = snapSpeed * timestep_sec;
+                    if (fabsf(diff) <= step) {
+                        hp->Rotation.z = snapTargetRotZ;
+                        isSnapping = false;
+                        stopped = true;
+                    }
+                    else {
+                        hp->Rotation.z += (diff > 0.f ? step : -step);
+                    }
+                }
             }
+        }
+
+        for (int i = 0; i < rouletteParticles.size(); i++) {
+            float angleRad = glm::radians(particles[i].angleOffsetDeg) + hp->Rotation.z;
+            rouletteParticles[i]->Position = hp->Position + mainWheelOrbitRad * glm::vec3(cosf(angleRad), sinf(angleRad), 0.f);
         }
 
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //Switching camera using 1 or 2 keybind
+        //UNLIT
         unlit.use();
         if (cameraType == ORTHOGRAPHIC)
             unlit.passOrthoCamera(orthoCam);
         else
             unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
 
-        //Draw Particles.
-        for (auto* rp : RenderParticles) rp->Draw();
+        for (auto* mr : mRender) {
+            mr->Draw(hp->Rotation);
+        }
 
+        glDisable(GL_DEPTH_TEST);
+        //Draw Particles.
+        for (auto* rp : RenderParticles) {
+            rp->Draw();
+        }
+        glEnable(GL_DEPTH_TEST);
+
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        lit.use();
+        if (cameraType == ORTHOGRAPHIC)
+            lit.passOrthoCamera(orthoCam);
+        else
+            lit.passPerspectiveCamera(perspectiveCam, orbitTarget);
+        quad.Rotation(hp->Rotation);
+        quad.Draw();
+
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+        
+        
+       
+        
         //Switching camera (Line Shader)
+        /*
         lineShader.use();
         if (cameraType == ORTHOGRAPHIC)
             lineShader.passOrthoCamera(orthoCam);
@@ -694,13 +915,28 @@ int main(void)
         //Render Line
         for (int i = 0; i < lines.size(); i++)
             lines[i]->DrawLine(cableLines[i].position, cableParticles[i]->Position);
-
+        */
     }
 
     sphereModel->DeleteBuffers();
+    hubModel->DeleteBuffers();
+    quad.Destroy();
+    //for (auto& l : lines) l->DeleteBuffers();
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     //Terminate gl
     glfwTerminate();
+
+    if (rewardIndex >= 0 && rewardIndex < (int)particles.size()) {
+        std::cout << "\n==============================================\n";
+        std::cout << "  RESULT: " << particles[rewardIndex].colorName
+            << " - " << particles[rewardIndex].reward << std::endl;
+        std::cout << "==============================================\n";
+    }
+
     return 0;
 }
 

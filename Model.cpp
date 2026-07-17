@@ -22,6 +22,10 @@ namespace Physics {
         this->shader = s;
     }
 
+    GLuint Model::GetDiffuse() {
+        return this->diffuseTexture;
+    }
+
     Model::Model() {
         this->modelName = "";
         this->texName = "";
@@ -42,14 +46,64 @@ namespace Physics {
         baseMtl = _mtlPath;
     }
 
+    void Model::InitModelTex() {
+        stbi_set_flip_vertically_on_load(true);
+        int img_width, img_height, colorChannels;
+        GLenum format{};
+        unsigned char* tex_bytes = stbi_load(texName.c_str(), &img_width, &img_height, &colorChannels, 0);
+
+        if (tex_bytes) {
+            GLenum format = (colorChannels == 4) ? GL_RGBA : GL_RGB;
+
+            //(TEXTURE) Load / bind after shaders
+            glGenTextures(1, &diffuseTexture);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, diffuseTexture);
+
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0, //Texture 0
+                format, //Target color format
+                img_width,
+                img_height,
+                0,
+                format,
+                GL_UNSIGNED_BYTE,
+                tex_bytes //loaded texture in bytes
+            );
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+            // Filtering
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            stbi_image_free(tex_bytes);
+        }
+
+        else {
+            stbi_image_free(tex_bytes);
+        }
+    }
+
+    void Model::DrawModelHub()
+    {
+    }
+
     void Model::DrawModel() {
         glm::mat4 m = glm::mat4(1.0f);
         m = glm::translate(m, pos);
         m = glm::scale(m, scale);
+        m = glm::rotate(m, rotation.x, glm::vec3(1.f, 0.f, 0.f));
+        m = glm::rotate(m, rotation.y, glm::vec3(0.f, 1.f, 0.f));
+        m = glm::rotate(m, rotation.z, glm::vec3(0.f, 0.f, 1.f));
         this->shader->setMat4("transform", 1, m);
+        //this->shader->LoadTexture(GetDiffuse());
         this->shader->setVec3("objectColor", 1, color);
 
-        glBindVertexArray(vao);
+        glBindVertexArray(this->vao);
         //Vertex Data Method
         glDrawArrays(GL_TRIANGLES, 0, fullVertexData.size() / 8);
     }
@@ -71,6 +125,25 @@ namespace Physics {
         // 4. Unbind
         glBindVertexArray(0);
         this->shader->setVec3("objectColor", 1, color);
+    }
+
+    void Model::DrawQuad()
+    {
+        glm::mat4 m = glm::mat4(1.0f);
+        m = glm::translate(m, pos);
+        m = glm::scale(m, scale);
+        m = glm::rotate(m, rotation.x, glm::vec3(1.f, 0.f, 0.f));
+        m = glm::rotate(m, rotation.y, glm::vec3(0.f, 1.f, 0.f));
+        m = glm::rotate(m, rotation.z, glm::vec3(0.f, 0.f, 1.f));
+        this->shader->setMat4("transform", 1, m);
+        this->shader->LoadTexture(GetDiffuse());
+        /*this->shader->setVec3("circleColor", 1, color);
+        this->shader->setVec3("outlineColor", 1, glm::vec3(1.f, 1.f, 1.f));
+        this->shader->setFloat("thickness", .01f);*/
+
+        // Draw quad
+        glBindVertexArray(this->vao);
+        glDrawArrays(GL_TRIANGLES, 0, 32);
     }
 
     void Model::InitLine(const glm::vec3& start, const glm::vec3& end) {
@@ -120,6 +193,11 @@ namespace Physics {
     void Model::Color(glm::vec3 c)
     {
         color = c;
+    }
+
+    void Model::Rotation(glm::vec3 r)
+    {
+        rotation = r;
     }
          
     void Model::DeleteBuffers() {
@@ -200,6 +278,50 @@ namespace Physics {
         
     }
 
+    void Model::InitQuad()
+    {
+        float vertices[] = {
+            // Positions (X, Y, Z)  // Local Mapping Coordinates (U, V)
+            -1.0f,  1.0f, 0.0f,     -1.0f,  1.0f,  // Top Left
+            -1.0f, -1.0f, 0.0f,     -1.0f, -1.0f,  // Bottom Left
+             1.0f, -1.0f, 0.0f,      1.0f, -1.0f,  // Bottom Right
+
+            -1.0f,  1.0f, 0.0f,     -1.0f,  1.0f,  // Top Left
+             1.0f, -1.0f, 0.0f,      1.0f, -1.0f,  // Bottom Right
+             1.0f,  1.0f, 0.0f,      1.0f,  1.0f   // Top Right
+        };
+
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(
+            GL_ARRAY_BUFFER, 
+            sizeof(vertices), 
+            vertices, 
+            GL_STATIC_DRAW);
+
+        // Position Attribute (location = 0)
+        glVertexAttribPointer(
+            0, 
+            3, 
+            GL_FLOAT, 
+            GL_FALSE, 
+            5 * sizeof(float), 
+            (void*)0);
+        glEnableVertexAttribArray(0);
+
+        // Local Mapping Coordinate Attribute (location = 1)
+        glVertexAttribPointer(
+            1, 
+            2, 
+            GL_FLOAT, 
+            GL_FALSE, 
+            5 * sizeof(float), 
+            (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+    }
     
     void Model::InitModel() {
         //Load Object. If success, it loads

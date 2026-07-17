@@ -26,8 +26,11 @@ set(MAIN_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/Model.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Shader.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Shader.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Quad.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Quad.h
 	${CMAKE_CURRENT_SOURCE_DIR}/stb_image.h
-	${CMAKE_CURRENT_SOURCE_DIR}/tiny_obj_loader.h)
+	${CMAKE_CURRENT_SOURCE_DIR}/tiny_obj_loader.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Loader.h)
 
 # MAIN SOURCE
 set(BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -90,6 +93,19 @@ set(CABLE_SOURCES
 	${CABLE_DIR}/Cable.h
 	${CABLE_DIR}/Cable.cpp)
 
+#imgui
+set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui")
+set(IMGUI_SOURCES 
+	${IMGUI_DIR}/imgui.cpp
+	${IMGUI_DIR}/imgui_demo.cpp
+	${IMGUI_DIR}/imgui_draw.cpp
+	${IMGUI_DIR}/imgui_tables.cpp
+	${IMGUI_DIR}/imgui_widgets.cpp)
+
+set(IMGUI_BACKEND_SOURCES 
+	${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+	${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp)
+
 #Get GLFW
 FetchContent_Declare(
   glfw
@@ -123,12 +139,14 @@ find_package(OpenGL REQUIRED)
 # Change these to your files
 add_executable (Project-SimPhyx ${MAIN_SRC} ${GLAD_SRC} ${BASE_SOURCES} ${PHYS_SOURCES}
 				 ${SPRINGS_SOURCES} ${LINK_SOURCES} ${CONTACTS_SOURCES} ${MISC_SOURCES}
-				 ${CABLE_SOURCES})
+				 ${CABLE_SOURCES} ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
 target_include_directories(Project-SimPhyx PRIVATE
     ${glfw_SOURCE_DIR}/include
     ${glm_SOURCE_DIR}
 	${GLAD_INCLUDE_DIR}
+	${IMGUI_DIR}
+	${IMGUI_DIR}/backends
 )
 
 #Link the required libraries

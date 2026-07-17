@@ -14,8 +14,13 @@ namespace Physics {
 			Color = glm::vec3(1.0f, 1.0f, 1.0f);
 			Scale = glm::vec3(1.0f, 1.0f, 1.0f);
 		};
-		RenderParticle(Particle* p, Model* obj, glm::vec3 c, glm::vec3 s) : PhysicsParticle(p), RenderModel(obj), Color(c), Scale(s) {};
+		RenderParticle(Particle* p, Model* obj, glm::vec3 c, glm::vec3 s) : PhysicsParticle(p), RenderModel(obj), Color(c), Scale(s) 
+		{
+		};
 
 		void Draw();
+		void DrawTex();
+		void Draw(glm::vec3 rot);
+		void DrawHub(glm::vec3 rot);
 	};
 }

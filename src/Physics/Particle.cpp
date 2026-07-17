@@ -5,6 +5,10 @@ namespace Physics {
 	{
 		this->Position = this->Position + (this->Velocity * deltaTime) +
 			((1.0f / 2.0f) * (this->Acceleration * deltaTime * deltaTime));
+
+		//Rotations
+		glm::vec3 angularV = AngularVelocity * deltaTime;
+		this->Rotation = this->Rotation + angularV;
 	}
 
 	void Particle::UpdateVelocity(float deltaTime)
@@ -13,6 +17,15 @@ namespace Physics {
 		this->Acceleration += accumulatedForce * (1 / d_mass);
 		this->Velocity = this->Velocity + (this->Acceleration * deltaTime);
 		this->Velocity = this->Velocity * powf(damping, deltaTime);
+
+		float mI = MomentOfInertia();
+		AngularVelocity += accumulatedTorque * deltaTime * (1.f / mI);
+		AngularVelocity = AngularVelocity * powf(AngularDampening, deltaTime);
+	}
+
+	float Particle::MomentOfInertia()
+	{
+		return ((float)2 / 5) * mass * radius * radius;
 	}
 
 	void Particle::Destroy()
@@ -41,6 +54,7 @@ namespace Physics {
 	{
 		this->accumulatedForce = glm::vec3(0.f, 0.f, 0.f);
 		this->Acceleration = glm::vec3(0.f, 0.f, 0.f);
+		this->accumulatedTorque = glm::vec3(0.f, 0.f, 0.f);
 	}
 
 	glm::vec3 Particle::GetPosition()
@@ -48,11 +62,23 @@ namespace Physics {
 		return this->Position;
 	}
 
+	void Particle::AddForceAtPoint(glm::vec3 force, glm::vec3 p)
+	{
+		this->ApplyForce(force);
+		this->accumulatedTorque = glm::cross(p, force);
+	}
+
+	void Particle::AddTorqueAtPoint(glm::vec3 force, glm::vec3 p)
+	{
+		this->accumulatedTorque = glm::cross(p, force);
+	}
+
 	Particle::Particle()
 	{
 		this->Position = glm::vec3(0, 0, 0);
 		this->Velocity = glm::vec3(0, 0, 0);
-		this->Acceleration = glm::vec3(0, 0, 0);
+		this->Acceleration = glm::vec3(0, 0, 0); 
+		this->Rotation = glm::vec3(0, 0, 0);
 		this->Lifespan = 0.f;
 	}
 }

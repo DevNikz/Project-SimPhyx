@@ -93,6 +93,13 @@ namespace Physics {
         glBindTexture(GL_TEXTURE_2D, diffuse);
     }
 
+    void Shader::LoadBillboardTex(GLuint diffuse) {
+        glActiveTexture(GL_TEXTURE0);
+        GLuint tex0 = glGetUniformLocation(ID, "diffuseMap");
+        glUniform1i(tex0, 0);
+        glBindTexture(GL_TEXTURE_2D, diffuse);
+    }
+
     void Shader::LoadOverlay(GLuint overlay) {
         glActiveTexture(GL_TEXTURE2);
         GLuint tex2 = glGetUniformLocation(ID, "overlayMap");
