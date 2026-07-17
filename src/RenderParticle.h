@@ -19,8 +19,6 @@ namespace Physics {
 		};
 
 		void Draw();
-		void DrawTex();
 		void Draw(glm::vec3 rot);
-		void DrawHub(glm::vec3 rot);
 	};
 }

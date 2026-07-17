@@ -400,6 +400,11 @@ struct ParticleConfig {
     string reward;
 };
 
+struct LineConfig {
+    glm::vec3 start;
+    glm::vec3 end;
+};
+
 std::vector<ParticleConfig> particles
 {
     {90.f, glm::vec3(1.f, 0.1f, 0.1f), "Red", "$5 Steam Gift Card"},
@@ -682,13 +687,13 @@ int main(void)
     float edge = 750.f; //edge of the window
 
     //Load Model
-    auto sphereModel = std::make_unique<Model>("sphere", "", "");
-    sphereModel->InitModel();
-    sphereModel->AssignShader(&unlit);
+    auto sphereModel = std::make_unique<Model>("sphere", "", &unlit);
+    //sphereModel->InitModel();
+    //sphereModel->AssignShader(&unlit);
 
-    auto hubModel = std::make_unique<Model>("sphere", "", "");
-    hubModel->InitModel();
-    hubModel->AssignShader(&unlit);
+    auto hubModel = std::make_unique<Model>("sphere", "", &unlit);
+    //hubModel->InitModel();
+    //hubModel->AssignShader(&unlit);
 
     Quad quad;
     quad.Init();
@@ -699,6 +704,8 @@ int main(void)
     quad.AssignShader(&lit);
 
     std::vector<unique_ptr<Particle>> rouletteParticles;
+    std::vector<unique_ptr<Line>> Lines;
+    std::vector<LineConfig> renderLines;
 
     const float particleRadius = 50.f;
     const float gravityMod = 1.f;
@@ -734,10 +741,20 @@ int main(void)
 
         float angleRad = glm::radians(particles[i].angleOffsetDeg) + p->Rotation.z;
         p->Position = p->Position + mainWheelOrbitRad * glm::vec3(cosf(angleRad), sinf(angleRad), 0.f);
+        
 
         RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), particles[i].color, glm::vec3(p->radius));
         RenderParticles.push_back(rp);
+
+        auto l = std::make_unique<Line>(glm::vec3(0.f), p->Position, &lineShader);
         rouletteParticles.push_back(move(p));
+        Lines.push_back(move(l));
+
+        //LineConfig lc({ 
+        //    glm::vec3(0.f), //start pos
+        //    p->Position  //end pos
+        //});
+        //renderLines.push_back(lc);
     }
 
     //IMGUI
@@ -901,11 +918,9 @@ int main(void)
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
         
-        
-       
-        
-        //Switching camera (Line Shader)
-        /*
+        glDisable(GL_DEPTH_TEST);
+
+        //Line Shader
         lineShader.use();
         if (cameraType == ORTHOGRAPHIC)
             lineShader.passOrthoCamera(orthoCam);
@@ -913,9 +928,10 @@ int main(void)
             lineShader.passPerspectiveCamera(perspectiveCam, orbitTarget);
         
         //Render Line
-        for (int i = 0; i < lines.size(); i++)
-            lines[i]->DrawLine(cableLines[i].position, cableParticles[i]->Position);
-        */
+        for (int i = 0; i < Lines.size(); i++)
+            Lines[i]->Draw(glm::vec3(0.f), rouletteParticles[i].get()->Position);
+
+        glEnable(GL_DEPTH_TEST);
     }
 
     sphereModel->DeleteBuffers();

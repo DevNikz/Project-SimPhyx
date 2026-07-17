@@ -15,8 +15,6 @@ GLuint Quad::GetDiffuse() {
 
 void Quad::Init()
 {
-    // pos (x,y,z) | color (r,g,b) | texcoord (u,v)
-    // Centered quad, -0.5 to 0.5, lying in local XY plane (billboard-friendly)
     float vertices[] = {
         // positions          // colors           // texcoords
         -0.5f, -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,    0.0f, 0.0f, // bottom-left

@@ -26,31 +26,48 @@ namespace Physics {
         return this->diffuseTexture;
     }
 
+    void Model::Scale(glm::vec3 s) {
+        scale = s;
+    }
+
+    void Model::Position(glm::vec3 p)
+    {
+        pos = p;
+    }
+
+    void Model::Color(glm::vec3 c)
+    {
+        color = c;
+    }
+
+    void Model::Rotation(glm::vec3 r)
+    {
+        rotation = r;
+    }
+
     Model::Model() {
         this->modelName = "";
-        this->texName = "";
-        this->normName = "";
-        this->overlayName = "";
-        this->baseMtl = "";
+        this->diffuseName = "";
 
         this->diffuseTexture = 0;
         this->normalTexture = 0;
         this->overlayTexture = 0;
     }
 
-    Model::Model(string _name, string _tex, string _file, string _norm, string _normFile, string _over, string _overFile, string _mtlPath) {
-        modelName = "3D/" + _name + ".obj";
-        texName = "3D/" + _tex + _file;
-        normName = "3D/" + _norm + _normFile;
-        overlayName = "3D/" + _over + _overFile;
-        baseMtl = _mtlPath;
+    Model::Model(string _model, string _tex, Physics::Shader* s) {
+        modelName = "3D/" + _model + ".obj";
+        diffuseName = "3D/" + _tex;
+
+        InitModel();
+        InitTexture(diffuseName);
+        AssignShader(s);
     }
 
-    void Model::InitModelTex() {
+    void Model::InitTexture(const std::string& path) {
         stbi_set_flip_vertically_on_load(true);
         int img_width, img_height, colorChannels;
         GLenum format{};
-        unsigned char* tex_bytes = stbi_load(texName.c_str(), &img_width, &img_height, &colorChannels, 0);
+        unsigned char* tex_bytes = stbi_load(path.c_str(), &img_width, &img_height, &colorChannels, 0);
 
         if (tex_bytes) {
             GLenum format = (colorChannels == 4) ? GL_RGBA : GL_RGB;
@@ -88,10 +105,6 @@ namespace Physics {
         }
     }
 
-    void Model::DrawModelHub()
-    {
-    }
-
     void Model::DrawModel() {
         glm::mat4 m = glm::mat4(1.0f);
         m = glm::translate(m, pos);
@@ -100,104 +113,13 @@ namespace Physics {
         m = glm::rotate(m, rotation.y, glm::vec3(0.f, 1.f, 0.f));
         m = glm::rotate(m, rotation.z, glm::vec3(0.f, 0.f, 1.f));
         this->shader->setMat4("transform", 1, m);
-        //this->shader->LoadTexture(GetDiffuse());
-        this->shader->setVec3("objectColor", 1, color);
+        if(color != glm::vec3(1.f)) this->shader->setVec3("objectColor", 1, color);
+        if(diffuseTexture != 0) this->shader->LoadTexture(GetDiffuse());
+        
 
         glBindVertexArray(this->vao);
         //Vertex Data Method
         glDrawArrays(GL_TRIANGLES, 0, fullVertexData.size() / 8);
-    }
-
-    void Model::DrawLine(glm::vec3 start, glm::vec3 end) {
-        float updatedVertices[] = {
-            start.x, start.y, start.z,
-            end.x, end.y, end.z
-        };
-
-        // 2. Bind the VBO and update the data
-        glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(updatedVertices), updatedVertices);
-
-        // 3. Render the line
-        glBindVertexArray(this->vao);
-        glDrawArrays(GL_LINES, 0, 2);
-
-        // 4. Unbind
-        glBindVertexArray(0);
-        this->shader->setVec3("objectColor", 1, color);
-    }
-
-    void Model::DrawQuad()
-    {
-        glm::mat4 m = glm::mat4(1.0f);
-        m = glm::translate(m, pos);
-        m = glm::scale(m, scale);
-        m = glm::rotate(m, rotation.x, glm::vec3(1.f, 0.f, 0.f));
-        m = glm::rotate(m, rotation.y, glm::vec3(0.f, 1.f, 0.f));
-        m = glm::rotate(m, rotation.z, glm::vec3(0.f, 0.f, 1.f));
-        this->shader->setMat4("transform", 1, m);
-        this->shader->LoadTexture(GetDiffuse());
-        /*this->shader->setVec3("circleColor", 1, color);
-        this->shader->setVec3("outlineColor", 1, glm::vec3(1.f, 1.f, 1.f));
-        this->shader->setFloat("thickness", .01f);*/
-
-        // Draw quad
-        glBindVertexArray(this->vao);
-        glDrawArrays(GL_TRIANGLES, 0, 32);
-    }
-
-    void Model::InitLine(const glm::vec3& start, const glm::vec3& end) {
-        float vertices[] = {
-            start.x, start.y, start.z,
-            end.x, end.y, end.z
-        };
-
-        //(SHADERS) Generate vertices and buffers
-        glGenVertexArrays(1, &vao);
-        glGenBuffers(1, &vbo);
-
-        //(POSITIONS) VBO
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-        //Using fullvertexdata
-        glBufferData(
-            GL_ARRAY_BUFFER,
-            sizeof(vertices),
-            vertices,
-            GL_DYNAMIC_DRAW
-        );
-        glVertexAttribPointer(
-            0, // Index / buffer index
-            3, // x y z
-            GL_FLOAT, // array of floats
-            GL_FALSE, // if its normalized
-            3 * sizeof(GLfloat), // size of data per vertex
-            (void*)0
-        );
-        glEnableVertexAttribArray(0);
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-
-    void Model::Scale(glm::vec3 s) {
-        scale = s;
-    }
-
-    void Model::Position(glm::vec3 p)
-    {
-        pos = p;
-    }
-
-    void Model::Color(glm::vec3 c)
-    {
-        color = c;
-    }
-
-    void Model::Rotation(glm::vec3 r)
-    {
-        rotation = r;
     }
          
     void Model::DeleteBuffers() {
@@ -276,51 +198,6 @@ namespace Physics {
         glEnableVertexAttribArray(2);
         glBindVertexArray(0);
         
-    }
-
-    void Model::InitQuad()
-    {
-        float vertices[] = {
-            // Positions (X, Y, Z)  // Local Mapping Coordinates (U, V)
-            -1.0f,  1.0f, 0.0f,     -1.0f,  1.0f,  // Top Left
-            -1.0f, -1.0f, 0.0f,     -1.0f, -1.0f,  // Bottom Left
-             1.0f, -1.0f, 0.0f,      1.0f, -1.0f,  // Bottom Right
-
-            -1.0f,  1.0f, 0.0f,     -1.0f,  1.0f,  // Top Left
-             1.0f, -1.0f, 0.0f,      1.0f, -1.0f,  // Bottom Right
-             1.0f,  1.0f, 0.0f,      1.0f,  1.0f   // Top Right
-        };
-
-        glGenVertexArrays(1, &vao);
-        glGenBuffers(1, &vbo);
-
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(
-            GL_ARRAY_BUFFER, 
-            sizeof(vertices), 
-            vertices, 
-            GL_STATIC_DRAW);
-
-        // Position Attribute (location = 0)
-        glVertexAttribPointer(
-            0, 
-            3, 
-            GL_FLOAT, 
-            GL_FALSE, 
-            5 * sizeof(float), 
-            (void*)0);
-        glEnableVertexAttribArray(0);
-
-        // Local Mapping Coordinate Attribute (location = 1)
-        glVertexAttribPointer(
-            1, 
-            2, 
-            GL_FLOAT, 
-            GL_FALSE, 
-            5 * sizeof(float), 
-            (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
     }
     
     void Model::InitModel() {

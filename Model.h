@@ -32,28 +32,15 @@ namespace Physics {
 
         public:
             string modelName;
-            string texName;
-            string normName;
-            string overlayName;
-            string baseMtl;
+            string diffuseName;
 
             Model();
-            Model(string _name, string _tex, string _file, string _norm = "", string _normFile = "", string _over = "", string _overFile = "", string _mtlPath = "3D/");
+            Model(string _model, string _tex, Physics::Shader* s);
             void InitModel();
-            void InitLine(const glm::vec3& start, const glm::vec3& end);
             void InitDefaultMesh();
-            void InitQuad();
-            //void InitCustomModel();
-            //void InitCube();
-            //void DrawCube();
-            void DrawModelHub();
             void DrawModel();
-            void DrawLine(glm::vec3 start, glm::vec3 end);
-            void DrawQuad();
             void DeleteBuffers();
-            void InitModelTex();
-            //void InitOverlayMap();
-            //void InitNormals();
+            void InitTexture(const std::string& path);
 
             void Scale(glm::vec3 s);
             void Position(glm::vec3 p);
@@ -61,8 +48,6 @@ namespace Physics {
             void Rotation(glm::vec3 r);
 
             GLuint GetDiffuse();
-            //GLuint GetNormal();
-            //GLuint GetOverlay();
             Physics::Shader* GetShader();
             void AssignShader(Physics::Shader* s);
     };

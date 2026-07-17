@@ -29,7 +29,7 @@
 #include "thirdparty/imgui/imgui.h"
 #include "thirdparty/imgui/backends/imgui_impl_opengl3.h"
 #include "Quad.h"
-#include "Loader.h"
+#include "Line.h"
 
 using namespace std;
 using namespace Physics;

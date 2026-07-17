@@ -21,12 +21,3 @@ void RenderParticle::Draw(glm::vec3 rot)
 	RenderModel->Rotation(rot);
 	RenderModel->DrawModel();
 }
-
-void RenderParticle::DrawHub(glm::vec3 rot)
-{
-	if (PhysicsParticle->IsDestroyed()) return;
-	RenderModel->Position(PhysicsParticle->Position);
-	RenderModel->Scale(Scale);
-	RenderModel->Rotation(rot);
-	RenderModel->DrawModelHub();
-}
