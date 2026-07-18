@@ -82,8 +82,14 @@ namespace Physics {
         glUniform3fv(glGetUniformLocation(ID, name.c_str()), i, glm::value_ptr(value));
     }
 
-    void Shader::setMat4(const std::string& name, int i, glm::mat4 value) {
+    void Shader::setMat4(const std::string& name, int i, glm::mat4 value) const 
+    {
         glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), i, GL_FALSE, glm::value_ptr(value));
+    }
+
+    void Shader::setVec4(const std::string& name, int i, glm::vec3 value) const
+    {
+        glUniform4fv(glGetUniformLocation(ID, name.c_str()), i, glm::value_ptr(value));
     }
 
     void Shader::LoadTexture(GLuint diffuse) {
@@ -139,13 +145,11 @@ namespace Physics {
     void Shader::passPerspectiveCamera(Physics::Camera cam, glm::vec3 target) {
         setMat4("projection", 1, cam.Projection);
         setMat4("view", 1, cam.GetPerspectiveViewMatrix(target));
-        setVec3("cameraPos", 1, cam.Position);
     }
 
     void Shader::passOrthoCamera(Physics::Camera cam) {
         setMat4("projection", 1, cam.Projection);
         setMat4("view", 1, cam.GetOrthoViewMatrix());
-        setVec3("cameraPos", 1, cam.Position);
     }
 
     void Shader::passPointLight(const std::string& name, glm::vec3 position, glm::vec3 color,

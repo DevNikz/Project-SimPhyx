@@ -17,7 +17,8 @@ namespace Physics {
             void setInt(const std::string& name, int value) const;
             void setFloat(const std::string& name, float value) const;
             void setVec3(const std::string& name, int i, glm::vec3 value) const;
-            void setMat4(const std::string& name, int i, glm::mat4 value);
+            void setMat4(const std::string& name, int i, glm::mat4 value) const;
+            void setVec4(const std::string& name, int i, glm::vec3 value) const;
             void LoadBillboardTex(GLuint diffuse);
             void LoadTexture(GLuint diffuse);
             void LoadOverlay(GLuint overlay);

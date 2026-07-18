@@ -473,7 +473,7 @@ void DisplayMenu() {
     cin >> spinForceMag;
 }
 
-void ShowFPSOverlay(bool* p_open, Particle* hp) {
+void ShowFPSOverlay(bool* p_open) {
     static int corner = 0;
     ImGuiIO& io = ImGui::GetIO();
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration
@@ -507,9 +507,9 @@ void ShowFPSOverlay(bool* p_open, Particle* hp) {
         ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);
 
         ImGui::SeparatorText("Input");
-        ImGui::Text("Braking: %d", braking);
+        /*ImGui::Text("Braking: %d", braking);
         ImGui::Text("Stopped: %d", stopped);
-        ImGui::Text("Speed: %.2f", hp->AngularVelocity.z);
+        ImGui::Text("Speed: %.2f", hp->AngularVelocity.z);*/
 
         /*ImGui::SeparatorText("Particle");
         ImGui::Text("Position: (%.1f, %.1f, %.1f)", p->Position.x, p->Position.y, p->Position.z);
@@ -572,26 +572,12 @@ void processInput(GLFWwindow* window)
     bool spaceDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
     if (spaceDown) {
         if (!spacePressed) {
-            bool isSpinning = hubParticle && fabsf(hubParticle->AngularVelocity.z) > stopEps;
-            if (isSpinning) {
-                braking = true;
-            }
-            else if (hubParticle) {
-                int top = GetTopIndex(hubParticle->Rotation.z);
-                float angleRad = glm::radians(particles[top].angleOffsetDeg) + hubParticle->Rotation.z;
-
-                glm::vec3 tangent(-sinf(angleRad), cosf(angleRad), 0.f);
-                glm::vec3 localOffset = mainWheelOrbitRad * glm::vec3(cosf(angleRad), sinf(angleRad), 0.f);
-
-                float force = spinForceMag * spinGain;
-                hubParticle->AddTorqueAtPoint(tangent * force, localOffset);
-            }
+            cout << "Test" << endl;
         }
         spacePressed = true;
     }
     else {
         spacePressed = false;
-        braking = false;
     }
 
     //Ortho or perspective
@@ -627,8 +613,6 @@ void processInput(GLFWwindow* window)
 //MAIN
 int main(void)
 {
-    DisplayMenu();
-
     //60fps Physics Update
     constexpr std::chrono::nanoseconds timestep(16666666);
 
@@ -638,7 +622,6 @@ int main(void)
 
     /* Create a windowed mode window and its OpenGL context */
     glfwWindowHint(GLFW_SAMPLES, 8);
-    //glfwWindowHint(GLFW_FLOATING, true);
 
     window = glfwCreateWindow(windowWidth, windowHeight, "PC02 Ragudo", NULL, NULL);
     if (!window)
@@ -678,8 +661,7 @@ int main(void)
     Shader unlit("Shaders/unlit.vert", "Shaders/unlit.frag");
     Shader lit("Shaders/lit.vert", "Shaders/lit.frag");
     Shader lineShader("Shaders/lineShader.vert", "Shaders/lineShader.frag");
-    Shader circleShader("Shaders/circleShader.vert", "Shaders/circleShader.frag");
-    Shader billboardShader("Shaders/bbShader.vert", "Shaders/bbShader.frag");
+    Shader spriteShader("Shaders/spriteShader.vert", "Shaders/spriteShader.frag");
 
     std::list<RenderParticle*> RenderParticles;
     std::list<RenderParticle*> mRender;
@@ -688,24 +670,26 @@ int main(void)
 
     //Load Model
     auto sphereModel = std::make_unique<Model>("sphere", "", &unlit);
-    //sphereModel->InitModel();
-    //sphereModel->AssignShader(&unlit);
-
     auto hubModel = std::make_unique<Model>("sphere", "", &unlit);
-    //hubModel->InitModel();
-    //hubModel->AssignShader(&unlit);
 
-    Quad quad;
-    quad.Init();
-    quad.LoadDiffuse("3D/roulette.png");
-    quad.Position(glm::vec3(0.f, 0.f, -10.f));
-    quad.Scale(glm::vec3(wheelRad * 2));
-    quad.Rotation(glm::vec3(0.f));
-    quad.AssignShader(&lit);
+    Quad owlet;
+    owlet.loadTexture("3D/Owlet_Monster_Idle_4.png", /*sheetColumns=*/4, /*sheetRows=*/1);
+    owlet.setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+    owlet.setScale(glm::vec2(200.0f, 200.0f)); // pixel-art sprite, scaled up
 
-    std::vector<unique_ptr<Particle>> rouletteParticles;
-    std::vector<unique_ptr<Line>> Lines;
-    std::vector<LineConfig> renderLines;
+    //Quad quad;
+    //quad.useMipmaps = false;
+    //quad.AssignShader(&spriteShader);
+    //quad.Init();
+    //quad.LoadDiffuse("3D/Owlet_Monster_Idle_4.png", true);
+    //quad.Position(glm::vec3(0.f, 0.f, 0.f));
+    //quad.Scale(glm::vec3(250.f, 250.f, 250.f));
+    //quad.Rotation(glm::vec3(0.f, 0.f, 0.f));
+    //quad.SetSpriteSheet(4, 1, 4, 8);
+
+    //std::vector<unique_ptr<Particle>> rouletteParticles;
+    //std::vector<unique_ptr<Line>> Lines;
+    //std::vector<LineConfig> renderLines;
 
     const float particleRadius = 50.f;
     const float gravityMod = 1.f;
@@ -716,21 +700,22 @@ int main(void)
     mainWheelOrbitRad = wheelOrbitRadius;
 
     //HUB
-    auto hp = std::make_unique<Particle>();
-    hp->Position = glm::vec3(0.f, 0.f, 0.f);
-    hp->mass = 10.0f;
-    hp->restitution = rest;
-    hp->radius = wheelRad;
-    hp->useGravity = false;
+    //auto hp = std::make_unique<Particle>();
+    //hp->Position = glm::vec3(0.f, 0.f, 0.f);
+    //hp->mass = 10.0f;
+    //hp->restitution = rest;
+    //hp->radius = wheelRad;
+    //hp->useGravity = false;
 
-    RenderParticle* rp = new RenderParticle(hp.get(), hubModel.get(), glm::vec3(0.25f, 0.f, 0.f), glm::vec3(wheelRad));
-    mRender.push_back(rp);
-    pWorld->AddParticle(hp.get());
+    //RenderParticle* rp = new RenderParticle(hp.get(), hubModel.get(), glm::vec3(0.25f, 0.f, 0.f), glm::vec3(wheelRad));
+    //mRender.push_back(rp);
+    //pWorld->AddParticle(hp.get());
 
-    //Center Particle
-    hubParticle = hp.get();
+    ////Center Particle
+    //hubParticle = hp.get();
 
     //Spawn Particles
+    /*
     for (int i = 0; i < 5; i++) {
         auto p = std::make_unique<Particle>();
         p->Position = glm::vec3(0.f, 0.f, 1.f);
@@ -749,13 +734,8 @@ int main(void)
         auto l = std::make_unique<Line>(glm::vec3(0.f), p->Position, &lineShader);
         rouletteParticles.push_back(move(p));
         Lines.push_back(move(l));
-
-        //LineConfig lc({ 
-        //    glm::vec3(0.f), //start pos
-        //    p->Position  //end pos
-        //});
-        //renderLines.push_back(lc);
     }
+    */
 
     //IMGUI
     IMGUI_CHECKVERSION();
@@ -774,8 +754,6 @@ int main(void)
     auto prev_time = curr_time;
     std::chrono::nanoseconds curr_ns(0);
 
-    bool endGame = false;
-
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
@@ -788,7 +766,7 @@ int main(void)
         ImGui::NewFrame();
         static bool show_overlay = true;
         if (show_overlay) {
-            ShowFPSOverlay(&show_overlay, hp.get());
+            ShowFPSOverlay(&show_overlay);
         }
 
         ImGui::Render();
@@ -799,22 +777,6 @@ int main(void)
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
-
-        if (stopped) {
-            stopped = false;
-            rewardIndex = GetTopIndex(hp->Rotation.z);
-
-            cout << "\n----------------------------------------------\n";
-            cout << "CONGRATULATIONS!" << std::endl;
-            cout << "Press ENTER to redeem your reward!";
-            cout.flush();
-            endGame = true;
-        }
-
-        if (endGame) {
-            if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS)
-                glfwSetWindowShouldClose(window, true);
-        }
         
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
@@ -831,112 +793,56 @@ int main(void)
                 curr_ns -= timestep;
 
                 //Physics Update
-                pWorld->Update(timestep_sec);
+                //pWorld->Update(timestep_sec);
 
-                float& av = hp->AngularVelocity.z;
-                if (av != 0.f) {
-                    float decel = braking ? brakeStrength : friction;
-                    float sign = (av > 0.f) ? 1.f : -1.f;
-                    av -= sign * decel * timestep_sec;
-                    if (sign * av < 0.f) av = 0.f;
-
-                    av *= (1.f - visDamp * timestep_sec);
-
-                    if (fabsf(av) < stopEps) av = 0.f;
-                }
-                av = glm::clamp(av, -maxClamp, maxClamp);
-
-                bool spinningNow = fabsf(av) > stopEps;
-                if (wasSpinning && !spinningNow && !isSnapping) {
-                    int top = GetTopIndex(hp->Rotation.z);
-                    float currentAngleRad = glm::radians(particles[top].angleOffsetDeg) + hp->Rotation.z;
-
-                    //Shortest signed distance from currentAngleRad to "top" (90 deg / +Y)
-                    float delta = glm::radians(90.f) - currentAngleRad;
-                    delta = atan2f(sinf(delta), cosf(delta));
-
-                    snapTargetRotZ = hp->Rotation.z + delta;
-                    isSnapping = true;
-                }
-                wasSpinning = spinningNow;
-
-                if (isSnapping) {
-                    float diff = snapTargetRotZ - hp->Rotation.z;
-                    diff = atan2f(sinf(diff), cosf(diff)); //wrap to [-pi, pi]
-
-                    float step = snapSpeed * timestep_sec;
-                    if (fabsf(diff) <= step) {
-                        hp->Rotation.z = snapTargetRotZ;
-                        isSnapping = false;
-                        stopped = true;
-                    }
-                    else {
-                        hp->Rotation.z += (diff > 0.f ? step : -step);
-                    }
-                }
+                
             }
         }
 
-        for (int i = 0; i < rouletteParticles.size(); i++) {
-            float angleRad = glm::radians(particles[i].angleOffsetDeg) + hp->Rotation.z;
-            rouletteParticles[i]->Position = hp->Position + mainWheelOrbitRad * glm::vec3(cosf(angleRad), sinf(angleRad), 0.f);
-        }
-
-        /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        /* Render here */
 
-        //UNLIT
-        unlit.use();
-        if (cameraType == ORTHOGRAPHIC)
-            unlit.passOrthoCamera(orthoCam);
-        else
-            unlit.passPerspectiveCamera(perspectiveCam, orbitTarget);
-
-        for (auto* mr : mRender) {
-            mr->Draw(hp->Rotation);
-        }
-
-        glDisable(GL_DEPTH_TEST);
-        //Draw Particles.
-        for (auto* rp : RenderParticles) {
-            rp->Draw();
-        }
-        glEnable(GL_DEPTH_TEST);
+        //glDisable(GL_DEPTH_TEST);
+        ////Draw Particles.
+        //for (auto* rp : RenderParticles) {
+        //    rp->Draw();
+        //}
+        //glEnable(GL_DEPTH_TEST);
 
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        lit.use();
+        spriteShader.use();
         if (cameraType == ORTHOGRAPHIC)
-            lit.passOrthoCamera(orthoCam);
+            spriteShader.passOrthoCamera(orthoCam);
         else
-            lit.passPerspectiveCamera(perspectiveCam, orbitTarget);
-        quad.Rotation(hp->Rotation);
-        quad.Draw();
+            spriteShader.passPerspectiveCamera(perspectiveCam, orbitTarget);
 
+        /*quad.UpdateAnimation(deltaTime);
+        quad.Draw();*/
+        owlet.updateAnimation(deltaTime, /*frameCount=*/4, /*frameDuration=*/0.15f);
+        owlet.draw(spriteShader);
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
         
-        glDisable(GL_DEPTH_TEST);
 
-        //Line Shader
-        lineShader.use();
-        if (cameraType == ORTHOGRAPHIC)
-            lineShader.passOrthoCamera(orthoCam);
-        else
-            lineShader.passPerspectiveCamera(perspectiveCam, orbitTarget);
-        
-        //Render Line
-        for (int i = 0; i < Lines.size(); i++)
-            Lines[i]->Draw(glm::vec3(0.f), rouletteParticles[i].get()->Position);
-
-        glEnable(GL_DEPTH_TEST);
+        //glDisable(GL_DEPTH_TEST);
+        ////Line Shader
+        //lineShader.use();
+        //if (cameraType == ORTHOGRAPHIC)
+        //    lineShader.passOrthoCamera(orthoCam);
+        //else
+        //    lineShader.passPerspectiveCamera(perspectiveCam, orbitTarget);
+        //
+        ////Render Line
+        //for (int i = 0; i < Lines.size(); i++)
+        //    Lines[i]->Draw(glm::vec3(0.f), rouletteParticles[i].get()->Position);
+        //glEnable(GL_DEPTH_TEST);
     }
 
     sphereModel->DeleteBuffers();
     hubModel->DeleteBuffers();
-    quad.Destroy();
+    //quad.Destroy();
     //for (auto& l : lines) l->DeleteBuffers();
 
     ImGui_ImplOpenGL3_Shutdown();
@@ -945,13 +851,6 @@ int main(void)
 
     //Terminate gl
     glfwTerminate();
-
-    if (rewardIndex >= 0 && rewardIndex < (int)particles.size()) {
-        std::cout << "\n==============================================\n";
-        std::cout << "  RESULT: " << particles[rewardIndex].colorName
-            << " - " << particles[rewardIndex].reward << std::endl;
-        std::cout << "==============================================\n";
-    }
 
     return 0;
 }

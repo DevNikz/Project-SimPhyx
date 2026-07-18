@@ -1,142 +1,197 @@
 #include "Quad.h"
+using namespace std;
 using namespace Physics;
 
-Shader* Quad::GetShader() {
-    return this->shader;
-}
-
-void Quad::AssignShader(Physics::Shader* s) {
-    this->shader = s;
-}
-
-GLuint Quad::GetDiffuse() {
-    return this->diffuse;
-}
-
-void Quad::Init()
+Quad::Quad()
 {
-    float vertices[] = {
-        // positions          // colors           // texcoords
-        -0.5f, -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,    0.0f, 0.0f, // bottom-left
-         0.5f, -0.5f, 0.0f,   1.0f, 1.0f, 1.0f,    1.0f, 0.0f, // bottom-right
-         0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,    1.0f, 1.0f, // top-right
-        -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,    0.0f, 1.0f, // top-left
-    };
+    setupMesh();
+}
 
+Quad::~Quad()
+{
+    releaseGLResources();
+}
+
+Quad::Quad(Quad&& other) noexcept
+{
+    *this = std::move(other);
+}
+
+Quad& Quad::operator=(Quad&& other) noexcept
+{
+    if (this == &other) return *this;
+    releaseGLResources();
+
+    m_VAO = other.m_VAO; m_VBO = other.m_VBO; m_EBO = other.m_EBO;
+    m_textureID = other.m_textureID;
+    m_position = other.m_position;
+    m_scale = other.m_scale;
+    m_rotationDeg = other.m_rotationDeg;
+    m_color = other.m_color;
+    m_transform = other.m_transform;
+    m_dirty = other.m_dirty;
+    m_sheetColumns = other.m_sheetColumns;
+    m_sheetRows = other.m_sheetRows;
+    m_uvTransform = other.m_uvTransform;
+    m_animTimer = other.m_animTimer;
+    m_animFrame = other.m_animFrame;
+
+    other.m_VAO = other.m_VBO = other.m_EBO = 0;
+    other.m_textureID = 0;
+    return *this;
+}
+
+void Quad::releaseGLResources()
+{
+    if (m_EBO) glDeleteBuffers(1, &m_EBO);
+    if (m_VBO) glDeleteBuffers(1, &m_VBO);
+    if (m_VAO) glDeleteVertexArrays(1, &m_VAO);
+    if (m_textureID) glDeleteTextures(1, &m_textureID);
+    m_VAO = m_VBO = m_EBO = m_textureID = 0;
+}
+
+void Quad::setupMesh()
+{
+    // Unit quad centered on origin, in the XY plane, facing +Z.
+    // Layout per vertex: pos(3) color(3) texcoord(2)
+    // TexCoord v is flipped (1 - y) so the top of the image maps to the
+    // top of the quad — stb_image loads rows top-to-bottom.
+    float vertices[] = {
+        // pos                  // color            // texcoord
+        -0.5f, -0.5f, 0.0f,     1.0f, 1.0f, 1.0f,    0.0f, 1.0f, // bottom-left
+         0.5f, -0.5f, 0.0f,     1.0f, 1.0f, 1.0f,    1.0f, 1.0f, // bottom-right
+         0.5f,  0.5f, 0.0f,     1.0f, 1.0f, 1.0f,    1.0f, 0.0f, // top-right
+        -0.5f,  0.5f, 0.0f,     1.0f, 1.0f, 1.0f,    0.0f, 0.0f, // top-left
+    };
     unsigned int indices[] = {
         0, 1, 2,
         2, 3, 0
     };
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    glGenVertexArrays(1, &m_VAO);
+    glGenBuffers(1, &m_VBO);
+    glGenBuffers(1, &m_EBO);
 
-    glBindVertexArray(VAO);
+    glBindVertexArray(m_VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    int stride = 8 * sizeof(float);
+    const GLsizei stride = 8 * sizeof(float);
 
-    // aPos - location 0
+    // aPos
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0);
-
-    // aColor - location 1
+    // aColor
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-
-    // aTexCoord - location 2
+    // aTexCoord
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 }
 
-void Quad::LoadDiffuse(const std::string& path, bool flipVertically)
+bool Quad::loadTexture(const std::string& path, int sheetColumns, int sheetRows)
 {
-    
-    stbi_set_flip_vertically_on_load(flipVertically);
-    int width, height, nrChannels;
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
+    m_sheetColumns = std::max(1, sheetColumns);
+    m_sheetRows = std::max(1, sheetRows);
 
-    if (data)
+    if (m_textureID) glDeleteTextures(1, &m_textureID);
+    glGenTextures(1, &m_textureID);
+    glBindTexture(GL_TEXTURE_2D, m_textureID);
+
+    // Nearest filtering keeps pixel art crisp; clamp so adjacent frames
+    // in the sheet never bleed into each other at the edges.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    stbi_set_flip_vertically_on_load(false);
+    int width, height, channels;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
+    if (!data)
     {
-        GLenum format{};
-        if (nrChannels == 1)
-            format = GL_RED;
-        else if (nrChannels == 3)
-            format = GL_RGB;
-        else if (nrChannels == 4)
-            format = GL_RGBA;
-        else
-        {
-            std::cerr << "LoadTexture: unexpected channel count (" << nrChannels << ") for " << path << std::endl;
-            stbi_image_free(data);
-        }
-
-        glGenTextures(1, &diffuse);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, diffuse);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        // Wrapping
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        // Filtering
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        stbi_image_free(data);
+        std::cerr << "[Quad] Failed to load texture: " << path << std::endl;
+        return false;
     }
-    else
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    stbi_image_free(data);
+
+    // Default to the first frame (top-left).
+    setFrame(0, 0);
+    return true;
+}
+
+void Quad::applyColorToVBO()
+{
+    // aColor is a per-vertex attribute in your shader (not a uniform), so
+    // tinting means overwriting the color floats (offset 3 of each 8-float
+    // vertex) for all 4 vertices via glBufferSubData.
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+    for (int i = 0; i < 4; ++i)
     {
-        std::cerr << "LoadTexture: failed to load texture at " << path << std::endl;
-        std::cerr << "  reason: " << stbi_failure_reason() << std::endl;
-        stbi_image_free(data);
+        GLintptr offset = i * 8 * sizeof(float) + 3 * sizeof(float);
+        glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(glm::vec3), &m_color[0]);
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void Quad::setFrame(int col, int row)
+{
+    col = std::clamp(col, 0, m_sheetColumns - 1);
+    row = std::clamp(row, 0, m_sheetRows - 1);
+
+    float scaleX = 1.0f / static_cast<float>(m_sheetColumns);
+    float scaleY = 1.0f / static_cast<float>(m_sheetRows);
+    float offsetX = col * scaleX;
+    float offsetY = row * scaleY;
+
+    // Matches spriteShader.vert: TexCoord = aTexCoord * uvTransform.xy + uvTransform.zw
+    m_uvTransform = glm::vec4(scaleX, scaleY, offsetX, offsetY);
+}
+
+void Quad::updateAnimation(float deltaTime, int frameCount, float frameDuration, int row)
+{
+    if (frameCount <= 0 || frameDuration <= 0.0f) return;
+
+    m_animTimer += deltaTime;
+    if (m_animTimer >= frameDuration)
+    {
+        m_animTimer -= frameDuration;
+        m_animFrame = (m_animFrame + 1) % frameCount;
+        setFrame(m_animFrame, row);
     }
 }
 
-void Quad::Draw()
+void Quad::updateTransform()
 {
-    glm::mat4 m = glm::mat4(1.0f);
-    m = glm::translate(m, pos);
-    m = glm::scale(m, scale);
-    m = glm::rotate(m, rotation.x, glm::vec3(1.f, 0.f, 0.f));
-    m = glm::rotate(m, rotation.y, glm::vec3(0.f, 1.f, 0.f));
-    m = glm::rotate(m, rotation.z, glm::vec3(0.f, 0.f, 1.f));
-    this->shader->setMat4("transform", 1, m);
-    this->shader->LoadTexture(GetDiffuse());
+    m_transform = glm::translate(glm::mat4(1.0f), m_position);
+    m_transform = glm::rotate(m_transform, glm::radians(m_rotationDeg), glm::vec3(0.0f, 0.0f, 1.0f));
+    m_transform = glm::scale(m_transform, glm::vec3(m_scale, 1.0f));
+    m_dirty = false;
+}
 
-    glBindVertexArray(this->VAO);
+void Quad::draw(Shader& shader)
+{
+    if (m_dirty) updateTransform();
+
+    shader.setMat4("transform", 1, m_transform);
+    shader.setVec4("uvTransform", 1, m_uvTransform);
+    /*shader.setMat4("transform", m_transform);
+    shader.setVec4("uvTransform", m_uvTransform);*/
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_textureID);
+    shader.setInt("diffuseMap", 0);
+
+    glBindVertexArray(m_VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    //glBindVertexArray(0);
-}
-
-void Quad::Destroy()
-{
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
-}
-
-void Quad::Scale(glm::vec3 s) {
-    scale = s;
-}
-
-void Quad::Position(glm::vec3 p)
-{
-    pos = p;
-}
-
-void Quad::Rotation(glm::vec3 r)
-{
-    rotation = r;
+    glBindVertexArray(0);
 }
