@@ -98,20 +98,51 @@ namespace Physics {
 				//Access particle at index h (Second Particle)
 				list<Particle*>::iterator b = next(Particles.begin(), j);
 
-				glm::vec3 mag2Vec = (*a)->Position - (*b)->Position;
-				float mag2 = glm::dot(mag2Vec, mag2Vec);
-				float rad = (*a)->radius + (*b)->radius;
-				float rad2 = rad * rad;
 
-				//Check Collision
-				if (mag2 <= rad2)
-				{
-					glm::vec3 dir = glm::normalize(mag2Vec);
-					float r = rad2 - mag2;
-					if (r <= 0) continue;
-					float depth = sqrt(r);
+				if ((*a)->GetShape() == Circle && (*b)->GetShape() == Circle) {
+					glm::vec3 mag2Vec = (*a)->Position - (*b)->Position;
+					float mag2 = glm::dot(mag2Vec, mag2Vec);
+					float rad = (*a)->radius + (*b)->radius;
+					float rad2 = rad * rad;
+
+					//Check Collision
+					if (mag2 <= rad2)
+					{
+						glm::vec3 dir = glm::normalize(mag2Vec);
+						float r = rad2 - mag2;
+						if (r <= 0) continue;
+						float depth = sqrt(r);
+						float restitution = fmin((*a)->restitution, (*b)->restitution);
+
+						AddContact(*a, *b, restitution, dir, depth);
+					}
+				}
+				else if ((*a)->GetShape() == Rect && (*b)->GetShape() == Rect) {
+					float skin = 5.0f; // small tolerance, tune to your world scale
+					glm::vec3 delta = (*a)->Position - (*b)->Position;  // a minus b, matches circle branch
+					glm::vec3 overlap = ((*a)->halfExtents + (*b)->halfExtents) - glm::abs(delta);
+
+					if (overlap.x <= -skin || overlap.y <= -skin)
+						continue;
+
+					//if (overlap.x <= 0 || overlap.y <= 0)
+					//	continue;
+
+					glm::vec3 dir(0.0f);
+					float depth;
+
+					if (overlap.x < overlap.y)
+					{
+						depth = overlap.x;
+						dir.x = (delta.x < 0.0f) ? -1.0f : 1.0f;
+					}
+					else
+					{
+						depth = overlap.y;
+						dir.y = (delta.y < 0.0f) ? -1.0f : 1.0f;
+					}
+
 					float restitution = fmin((*a)->restitution, (*b)->restitution);
-
 					AddContact(*a, *b, restitution, dir, depth);
 				}
 			}

@@ -20,8 +20,17 @@ namespace Physics {
     class Quad
     {
     public:
+        struct TextureHandle
+        {
+            unsigned int id = 0;
+            int width = 0;
+            int height = 0;
+        };
+
         Quad();
-        ~Quad();
+        Quad(int tile);
+        Quad(glm::vec2 t);
+        //~Quad();
 
         // Non-copyable (owns GL objects); movable.
         Quad(const Quad&) = delete;
@@ -32,7 +41,11 @@ namespace Physics {
         // Loads a texture from disk (PNG/JPG/etc via stb_image) and binds it
         // to this quad. sheetColumns/sheetRows describe how many frames the
         // sprite sheet is divided into (e.g. 4x1 for your Owlet idle sheet).
+        void loadWhiteTexture();
         bool loadTexture(const std::string& path, int sheetColumns = 1, int sheetRows = 1);
+
+        static TextureHandle LoadTextureCached(const std::string& path);
+        void setTexture(const TextureHandle& tex, int sheetColumns, int sheetRows);
 
         // Selects which frame of the sprite sheet to display.
         // col/row are 0-indexed, (0,0) = top-left frame.
@@ -46,15 +59,32 @@ namespace Physics {
         void setPosition(const glm::vec3& pos) { m_position = pos; m_dirty = true; }
         void setRotationDegrees(float degrees) { m_rotationDeg = degrees; m_dirty = true; }
         void setScale(const glm::vec2& scale) { m_scale = scale; m_dirty = true; }
+        void setFacingScale(float flip) { facingScale = flip; m_dirty = true; }
         void setColor(const glm::vec3& color) { m_color = color; applyColorToVBO(); }
+        void setColor(const glm::vec3& color, float alpha) { m_color = color; m_alpha = alpha; applyColorToVBO(); }
+        void setAlpha(float alpha) { m_alpha = alpha; }
+        void setTiling(int tiling) { m_tiling = tiling; }
+        void IsTiled(bool value) { isTiled = value; }
+
+        const float& getWidth() { return this->m_textureWidth; }
+        const float& getHeight() { return this->m_textureHeight; }
 
         const glm::vec3& getPosition() const { return m_position; }
+        const glm::vec2& getScale() const { return m_scale; }
+        float getFacingScale() { return facingScale; }
 
         // Draws the quad using the given shader. The shader must already be
         // `use()`d and have view/projection set by the caller before this.
         void draw(class Shader& shader);
+        void draw();
 
         unsigned int getTextureID() const { return m_textureID; }
+
+        void setFrameByPixel(int pixelX, int pixelY, int tileWidth, int tileHeight);
+
+        void setShader(Shader* value) { shader = value; }
+
+        void DeleteBuffers();
 
     private:
         void setupMesh();
@@ -64,11 +94,16 @@ namespace Physics {
 
         unsigned int m_VAO = 0, m_VBO = 0, m_EBO = 0;
         unsigned int m_textureID = 0;
+        int m_textureWidth = 0;
+        int m_textureHeight = 0;
+        bool m_ownsTexture = false; // true only if loadTexture() (not setTexture) loaded it
 
         glm::vec3 m_position{ 0.0f };
         glm::vec2 m_scale{ 1.0f, 1.0f };
         float m_rotationDeg = 0.0f;
         glm::vec3 m_color{ 1.0f, 1.0f, 1.0f };
+        float m_alpha = 1.f;
+        float facingScale = 1.f;
 
         glm::mat4 m_transform{ 1.0f };
         bool m_dirty = true;
@@ -76,10 +111,15 @@ namespace Physics {
         // Sprite sheet state
         int m_sheetColumns = 1;
         int m_sheetRows = 1;
+        int m_tiling = 1;
+        glm::vec2 tile;
         glm::vec4 m_uvTransform{ 1.0f, 1.0f, 0.0f, 0.0f }; // xy = frame scale, zw = frame offset
+        bool isTiled = false;
 
         // Animation state
         float m_animTimer = 0.0f;
         int m_animFrame = 0;
+
+        Shader* shader;
     };
 }

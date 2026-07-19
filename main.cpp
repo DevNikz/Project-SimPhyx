@@ -448,6 +448,9 @@ static const float snapSpeed = glm::radians(45.f);
 bool stopped = false;
 int rewardIndex = -1;
 
+//Game
+Particle* playerP;
+
 int GetTopIndex(float hubRotationRad)
 {
     int best = 0;
@@ -473,7 +476,7 @@ void DisplayMenu() {
     cin >> spinForceMag;
 }
 
-void ShowFPSOverlay(bool* p_open) {
+void ShowFPSOverlay(bool* p_open, PlayerController p) {
     static int corner = 0;
     ImGuiIO& io = ImGui::GetIO();
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration
@@ -506,7 +509,8 @@ void ShowFPSOverlay(bool* p_open) {
         ImGui::Text("FPS: %.1f", io.Framerate);
         ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);
 
-        ImGui::SeparatorText("Input");
+        ImGui::SeparatorText("Player");
+        ImGui::Text("Grounded: %d", p.isGrounded);
         /*ImGui::Text("Braking: %d", braking);
         ImGui::Text("Stopped: %d", stopped);
         ImGui::Text("Speed: %.2f", hp->AngularVelocity.z);*/
@@ -545,40 +549,42 @@ void ShowFPSOverlay(bool* p_open) {
     ImGui::End();
 }
 
+
+
 void processInput(GLFWwindow* window)
 {
-    static bool onePress = false;
-    static bool twoPress = false;
-    static bool fPress = false;
-    static bool spacePressed = false;
-    static int lightIntensity = 0;
-    static CameraType prevMode = ORTHOGRAPHIC;
+    //static bool onePress = false;
+    //static bool twoPress = false;
+    //static bool fPress = false;
+    //static bool spacePressed = false;
+    //static int lightIntensity = 0;
+    //static CameraType prevMode = ORTHOGRAPHIC;
 
-    const float lightIntensities[] = { 2.5f, 5.f, 7.5f };
+    //const float lightIntensities[] = { 2.5f, 5.f, 7.5f };
 
-    const float moveSpeed = 20.f;
-    const float turnSpeed = 90.f;
+    //const float moveSpeed = 20.f;
+    //const float turnSpeed = 90.f;
 
-    const float fpTurnSpeed = 60.f;
-    const float fpMoveSpeed = 10.f;
+    //const float fpTurnSpeed = 60.f;
+    //const float fpMoveSpeed = 10.f;
 
-    const float panSpeed = 20.f;
+    //const float panSpeed = 20.f;
 
     //Exit Game
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
     //Play/pause sim
-    bool spaceDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
-    if (spaceDown) {
-        if (!spacePressed) {
-            cout << "Test" << endl;
-        }
-        spacePressed = true;
-    }
-    else {
-        spacePressed = false;
-    }
+    //bool spaceDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+    //if (spaceDown) {
+    //    if (!spacePressed) {
+    //        cout << "Test" << endl;
+    //    }
+    //    spacePressed = true;
+    //}
+    //else {
+    //    spacePressed = false;
+    //}
 
     //Ortho or perspective
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
@@ -590,29 +596,14 @@ void processInput(GLFWwindow* window)
 
     //Orbit cam
     const float orbitSpeed = 60.f;
-
-    if (cameraType == PERSPECTIVE) {
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            orbitYawOffset -= orbitSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            orbitYawOffset += orbitSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            orbitPitch += orbitSpeed * deltaTime;
-
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            orbitPitch -= orbitSpeed * deltaTime;
-
-        if (orbitPitch < -85.f) orbitPitch = -85.f;
-        if (orbitPitch > 85.f) orbitPitch = 85.f;
-    }
-    updateOrbitCameras();
 }
 
 //MAIN
 int main(void)
 {
+    PlayerInput input;
+    PlayerController player;
+
     //60fps Physics Update
     constexpr std::chrono::nanoseconds timestep(16666666);
 
@@ -639,11 +630,12 @@ int main(void)
 
     //Camera instances
     //Orthographic Projection
+    const float START_VIEW_HALF_HEIGHT = 800.f * .65f;
     orthoCam.Projection = glm::ortho(
-        -800.f,
-        800.f,
-        -800.f,
-        800.f,
+        -START_VIEW_HALF_HEIGHT,
+        START_VIEW_HALF_HEIGHT,
+        -START_VIEW_HALF_HEIGHT,
+        START_VIEW_HALF_HEIGHT,
         -5000.f,
         5000.f
     );
@@ -664,40 +656,163 @@ int main(void)
     Shader spriteShader("Shaders/spriteShader.vert", "Shaders/spriteShader.frag");
 
     std::list<RenderParticle*> RenderParticles;
-    std::list<RenderParticle*> mRender;
+    std::list<RenderParticle*> envRender;
     auto pWorld = std::make_unique<PhysicsWorld>();
-    float edge = 750.f; //edge of the window
+    float edge = 450.f; //edge of the window
 
     //Load Model
     auto sphereModel = std::make_unique<Model>("sphere", "", &unlit);
     auto hubModel = std::make_unique<Model>("sphere", "", &unlit);
 
-    Quad owlet;
-    owlet.loadTexture("3D/Owlet_Monster_Idle_4.png", /*sheetColumns=*/4, /*sheetRows=*/1);
-    owlet.setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-    owlet.setScale(glm::vec2(200.0f, 200.0f)); // pixel-art sprite, scaled up
+    pWorld->ModifyGravity(50.f);
 
-    //Quad quad;
-    //quad.useMipmaps = false;
-    //quad.AssignShader(&spriteShader);
-    //quad.Init();
-    //quad.LoadDiffuse("3D/Owlet_Monster_Idle_4.png", true);
-    //quad.Position(glm::vec3(0.f, 0.f, 0.f));
-    //quad.Scale(glm::vec3(250.f, 250.f, 250.f));
-    //quad.Rotation(glm::vec3(0.f, 0.f, 0.f));
-    //quad.SetSpriteSheet(4, 1, 4, 8);
+    //MAIN CHARACTER
+    Quad owlet({1, 1});
+    owlet.setShader(&spriteShader);
+    owlet.loadTexture("3D/char/Owlet_Monster_Idle_4.png", /*sheetColumns=*/4, /*sheetRows=*/1);
+    owlet.setScale(glm::vec2(32 * 2, 32 * 2)); // pixel-art sprite, scaled up
+
+    //Rectangle Rigidbody
+    auto mainCharRB = std::make_unique<Particle>();
+    mainCharRB->Position = glm::vec3(-edge, 0.0f, 0.0f);
+    mainCharRB->mass = 1.f;
+    mainCharRB->restitution = 0.f;
+    mainCharRB->width = 32;
+    mainCharRB->height = 32;
+    mainCharRB->extents = glm::vec3(mainCharRB->width, mainCharRB->height, 0.f);
+    mainCharRB->halfExtents = glm::vec3(mainCharRB->width * 0.8, mainCharRB->height * 0.8, 0.f);
+    mainCharRB->SetPrimitive(Rect);
+    mainCharRB->useGravity = true; //debug
+    player.particle = mainCharRB.get();
+
+    RenderParticle* charRender = new RenderParticle(mainCharRB.get(), &owlet);
+    charRender->addClip("idle", "3D/char/Owlet_Monster_Idle_4.png", 4, 1, 4, 0.15f);
+    charRender->addClip("run", "3D/char/Owlet_Monster_Run_6.png", 6, 1, 6, 0.10f);
+    playerP = mainCharRB.get();
+
+    //Back
+    int scaleX = 4.5;
+    int scaleY = 4.5;
+    Quad back({ 1, 1 });
+    back.IsTiled(true);
+    back.setShader(&spriteShader);
+    back.loadTexture("3D/env/back.png", 1, 1);
+    back.setAlpha(0.9f);
+    back.setPosition(glm::vec3(0.0f, 50.f, 0.0f));
+    back.setScale(glm::vec2(384 * scaleX, 240 * scaleY)); // powers of 32
+
+    //FLOOR
+    scaleX = 100000;
+    scaleY = 1;
+    Quad grassFloor({ scaleX, scaleY });
+    grassFloor.IsTiled(true);
+    grassFloor.setShader(&spriteShader);
+    grassFloor.loadTexture("3D/env/ground.png", 1, 1);
+    grassFloor.setPosition(glm::vec3(0.0f, -250.0f, 0.0f));
+    grassFloor.setScale(glm::vec2(32 * scaleX, 32 * scaleY)); // powers of 32
+
+    //Rectangle Rigidbody
+    auto floor = std::make_unique<Particle>();
+    floor->Position = grassFloor.getPosition();
+    floor->mass = 1000000000000000.f;
+    floor->restitution = 0.f;
+    floor->width = 32 * scaleX;
+    floor->height = 32 * scaleY;
+    floor->extents = glm::vec3(floor->width, floor->height, 0.f);
+    floor->halfExtents = glm::vec3(floor->width * 0.5, floor->height * 0.5, 0.f);
+    floor->SetPrimitive(Rect);
+    floor->useGravity = false; //debug
+
+    //Render
+    RenderParticle* rp1 = new RenderParticle(floor.get(), &grassFloor);
+    envRender.push_back(rp1);
+
+    //Ground Mid
+    scaleX = 100000;
+    scaleY = 10;
+    float floorY = -250.0f;
+    float floorHalfHeight = (32 * 1) / 2.0f;
+    float groundHalfHeight = (32 * scaleY) / 2.0f;
+    float groundY = floorY - floorHalfHeight - groundHalfHeight;
+
+    Quad ground({ scaleX, scaleY });
+    ground.IsTiled(true);
+    ground.setShader(&spriteShader);
+    ground.loadTexture("3D/env/ground1.png", 1, 1);
+    ground.setPosition(glm::vec3(0.0f, groundY, 0.0f));
+    ground.setScale(glm::vec2(32 * scaleX, 32 * scaleY)); // powers of 32
+
+    //Bottom Ground
+    scaleX = 100000;
+    scaleY = 1;
+    Quad bottomGround({ scaleX, scaleY });
+    bottomGround.IsTiled(true);
+    bottomGround.setShader(&spriteShader);
+    bottomGround.loadTexture("3D/env/ground2.png", 1, 1);
+
+    float groundHeight = 32 * scaleY;
+    groundY = (-windowHeight * .65f) + (groundHeight / 2.0f);
+    bottomGround.setPosition(glm::vec3(0.0f, groundY, 0.0f));
+    bottomGround.setScale(glm::vec2(32 * scaleX, groundHeight)); // powers of 32
+
+    //Left
+    Quad left({ 1, 1 });
+    left.IsTiled(false);
+    left.setShader(&spriteShader);
+    left.loadWhiteTexture();
+    left.setColor(glm::vec3(1.f), 0.f);
+    left.setPosition(glm::vec3(-START_VIEW_HALF_HEIGHT, 0.f, 0.f));
+    left.setScale(glm::vec2(10, 1500.f)); // powers of 32
+
+    //Left Side Screen Rigidbody
+    auto leftSide = std::make_unique<Particle>();
+    leftSide->Position = left.getPosition();
+    leftSide->mass = 1000000000000000.f;
+    leftSide->restitution = 0.f;
+    leftSide->width = left.getScale().x;
+    leftSide->height = left.getScale().y;
+    leftSide->extents = glm::vec3(leftSide->width, leftSide->height, 0.f);
+    leftSide->halfExtents = glm::vec3(leftSide->width * 0.5, leftSide->height * 0.5, 0.f);
+    leftSide->SetPrimitive(Rect);
+    leftSide->useGravity = false; //debug
+
+    //Render
+    RenderParticle* rp3 = new RenderParticle(leftSide.get(), &left);
+    envRender.push_back(rp3);
+
+    //Right
+    Quad right({ 1, 1 });
+    right.IsTiled(false);
+    right.setShader(&spriteShader);
+    right.loadWhiteTexture();
+    right.setColor(glm::vec3(1.f), 0.f);
+    right.setPosition(glm::vec3(START_VIEW_HALF_HEIGHT, 0.f, 0.f));
+    right.setScale(glm::vec2(10, 1500.f)); // powers of 32
+
+    //Left Side Screen Rigidbody
+    auto rightSide = std::make_unique<Particle>();
+    rightSide->Position = right.getPosition();
+    rightSide->mass = 1000000000000000.f;
+    rightSide->restitution = 0.f;
+    rightSide->width = right.getScale().x;
+    rightSide->height = right.getScale().y;
+    rightSide->extents = glm::vec3(rightSide->width, rightSide->height, 0.f);
+    rightSide->halfExtents = glm::vec3(rightSide->width * 0.5, rightSide->height * 0.5, 0.f);
+    rightSide->SetPrimitive(Rect);
+    rightSide->useGravity = false; //debug
+
+    //Render
+    RenderParticle* rp4 = new RenderParticle(rightSide.get(), &right);
+    envRender.push_back(rp4);
+
+    pWorld->AddParticle(floor.get());
+    pWorld->AddParticle(mainCharRB.get());
+    pWorld->AddParticle(leftSide.get());
+    pWorld->AddParticle(rightSide.get());
 
     //std::vector<unique_ptr<Particle>> rouletteParticles;
     //std::vector<unique_ptr<Line>> Lines;
     //std::vector<LineConfig> renderLines;
-
-    const float particleRadius = 50.f;
-    const float gravityMod = 1.f;
-    const float rest = 0.9f;
-
-    //pWorld->ModifyGravity(gravityMod);
-    const float wheelOrbitRadius = wheelRad * 1.f;
-    mainWheelOrbitRad = wheelOrbitRadius;
 
     //HUB
     //auto hp = std::make_unique<Particle>();
@@ -759,30 +874,25 @@ int main(void)
     {
         //Normal Update
         processInput(window);
+        UpdatePlayerInput(window, input);
+        player.HandleInput(input, deltaTime);
 
-        //IMGUI
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        static bool show_overlay = true;
-        if (show_overlay) {
-            ShowFPSOverlay(&show_overlay);
-        }
+        //moveDir.x = 0.1f;
+        bool isMoving = glm::length(input.moveDir) > 0.001f;
+        charRender->play(isMoving ? "run" : "idle"); // no-op if already playing
 
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        float facingScale = input.facingLeft ? -1.0f : 1.0f;
+        charRender->facingScale = facingScale;
+        player.particle->Update(deltaTime);
 
-        /* Poll for and process events */
-        glfwPollEvents();
-
-        /* Swap front and back buffers */
-        glfwSwapBuffers(window);
-        
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
         prev_time = curr_time;
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
+
+        float groundedTimer = 0.0f;
+        float groundedGraceTime = 0.1f;
 
         //Spawn Particle per 0.025s tick | Spacebar for pasuing / resuming sim
         if (!simulationPaused) {
@@ -793,14 +903,26 @@ int main(void)
                 curr_ns -= timestep;
 
                 //Physics Update
-                //pWorld->Update(timestep_sec);
+                pWorld->Update(timestep_sec);
 
+                bool groundedThisFrame = CheckGrounded(player.particle, pWorld->GetContacts(), 0.5f);
+                
+                if (groundedThisFrame) {
+                    groundedTimer = groundedGraceTime;
+                }
+                else {
+                    groundedTimer -= deltaTime;
+                }
+
+                player.isGrounded = groundedTimer > 0.0f;
                 
             }
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         /* Render here */
+
+        
 
         //glDisable(GL_DEPTH_TEST);
         ////Draw Particles.
@@ -809,22 +931,54 @@ int main(void)
         //}
         //glEnable(GL_DEPTH_TEST);
 
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         spriteShader.use();
         if (cameraType == ORTHOGRAPHIC)
             spriteShader.passOrthoCamera(orthoCam);
         else
             spriteShader.passPerspectiveCamera(perspectiveCam, orbitTarget);
 
-        /*quad.UpdateAnimation(deltaTime);
-        quad.Draw();*/
-        owlet.updateAnimation(deltaTime, /*frameCount=*/4, /*frameDuration=*/0.15f);
-        owlet.draw(spriteShader);
+
+        //Render Backdrops first
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        back.draw();
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
+
+        //Draw Character
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        charRender->update(deltaTime); // animation update
+        charRender->DrawSprite();
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
+        //Draw Environment
+        for (auto* env : envRender) {
+            env->DrawSprite();
+        }
+        ground.draw();
+        bottomGround.draw();
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+
+        //IMGUI
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        static bool show_overlay = true;
+        if (show_overlay) {
+            ShowFPSOverlay(&show_overlay, player);
+        }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         //glDisable(GL_DEPTH_TEST);
         ////Line Shader
@@ -838,13 +992,20 @@ int main(void)
         //for (int i = 0; i < Lines.size(); i++)
         //    Lines[i]->Draw(glm::vec3(0.f), rouletteParticles[i].get()->Position);
         //glEnable(GL_DEPTH_TEST);
+
+        /* Swap front and back buffers */
+        glfwSwapBuffers(window);
+
+        /* Poll for and process events */
+        glfwPollEvents();
     }
 
     sphereModel->DeleteBuffers();
     hubModel->DeleteBuffers();
-    //quad.Destroy();
     //for (auto& l : lines) l->DeleteBuffers();
-
+    owlet.DeleteBuffers();
+    grassFloor.DeleteBuffers();
+    
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

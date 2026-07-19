@@ -30,6 +30,8 @@
 #include "thirdparty/imgui/backends/imgui_impl_opengl3.h"
 #include "Quad.h"
 #include "Line.h"
+#include "src/Input/PlayerController.h"
+#include "src/Input/PlayerInput.h"
 
 using namespace std;
 using namespace Physics;

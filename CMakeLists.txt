@@ -34,8 +34,7 @@ set(MAIN_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/Line.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Line.h
 	${CMAKE_CURRENT_SOURCE_DIR}/stb_image.h
-	${CMAKE_CURRENT_SOURCE_DIR}/tiny_obj_loader.h
-	${CMAKE_CURRENT_SOURCE_DIR}/Loader.h)
+	${CMAKE_CURRENT_SOURCE_DIR}/tiny_obj_loader.h)
 
 # MAIN SOURCE
 set(BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -98,6 +97,12 @@ set(CABLE_SOURCES
 	${CABLE_DIR}/Cable.h
 	${CABLE_DIR}/Cable.cpp)
 
+# INPUT
+set(INPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Input")
+set(INPUT_SOURCES 
+	${INPUT_DIR}/PlayerController.h
+	${INPUT_DIR}/PlayerInput.h)
+
 #imgui
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui")
 set(IMGUI_SOURCES 
@@ -144,7 +149,8 @@ find_package(OpenGL REQUIRED)
 # Change these to your files
 add_executable (Project-SimPhyx ${MAIN_SRC} ${GLAD_SRC} ${BASE_SOURCES} ${PHYS_SOURCES}
 				 ${SPRINGS_SOURCES} ${LINK_SOURCES} ${CONTACTS_SOURCES} ${MISC_SOURCES}
-				 ${CABLE_SOURCES} ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES})
+				 ${CABLE_SOURCES} ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES}
+				 ${INPUT_SOURCES})
 
 target_include_directories(Project-SimPhyx PRIVATE
     ${glfw_SOURCE_DIR}/include

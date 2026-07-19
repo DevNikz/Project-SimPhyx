@@ -17,6 +17,7 @@ namespace Physics {
 			std::list<Particle*> Particles;
 			std::list<ParticleLink*> Links;
 			std::vector<ParticleContact*> Contacts;
+			std::vector<ParticleContact*> GetContacts() { return Contacts; }
 			std::list<Chain*> Chains;
 			std::list<Cable*> Cables;
 

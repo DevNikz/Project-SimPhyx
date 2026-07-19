@@ -25,7 +25,12 @@ namespace Physics {
 
 	float Particle::MomentOfInertia()
 	{
-		return ((float)2 / 5) * mass * radius * radius;
+		if (shape == Circle) {
+			return ((float)2 / 5) * mass * radius * radius;
+		}
+		else {
+			return (mass * (width * width + height * height)) / 12;
+		}
 	}
 
 	void Particle::Destroy()
