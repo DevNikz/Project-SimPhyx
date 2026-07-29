@@ -35,6 +35,7 @@ namespace Physics {
 			p != Particles.end();
 			p++)
 		{
+			if (!(*p)->isActive) continue;
 			(*p)->Update(time);
 		}
 
@@ -54,6 +55,7 @@ namespace Physics {
 	void PhysicsWorld::GenerateContacts()
 	{
 		Contacts.clear();
+		TriggerEvents.clear();
 
 		//Cable
 		for (std::list<Cable*>::iterator i = Cables.begin();
@@ -98,6 +100,14 @@ namespace Physics {
 				//Access particle at index h (Second Particle)
 				list<Particle*>::iterator b = next(Particles.begin(), j);
 
+				if (!(*a)->isActive || !(*b)->isActive)
+					continue;
+
+				bool aAcceptsB = ((*a)->collisionMask & (*b)->collisionLayer) != 0;
+				bool bAcceptsA = ((*b)->collisionMask & (*a)->collisionLayer) != 0;
+				if (!aAcceptsB || !bAcceptsA)
+					continue;
+
 
 				if ((*a)->GetShape() == Circle && (*b)->GetShape() == Circle) {
 					glm::vec3 mag2Vec = (*a)->Position - (*b)->Position;
@@ -108,6 +118,11 @@ namespace Physics {
 					//Check Collision
 					if (mag2 <= rad2)
 					{
+						if ((*a)->isTrigger || (*b)->isTrigger) {
+							TriggerEvents.push_back({ { *a, *b } });
+							continue;
+						}
+
 						glm::vec3 dir = glm::normalize(mag2Vec);
 						float r = rad2 - mag2;
 						if (r <= 0) continue;
@@ -124,6 +139,11 @@ namespace Physics {
 
 					if (overlap.x <= -skin || overlap.y <= -skin)
 						continue;
+
+					if ((*a)->isTrigger || (*b)->isTrigger) {
+						TriggerEvents.push_back({ { *a, *b } });
+						continue;
+					}
 
 					//if (overlap.x <= 0 || overlap.y <= 0)
 					//	continue;

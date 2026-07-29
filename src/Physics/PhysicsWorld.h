@@ -10,6 +10,11 @@
 #include "../Cable/Cable.h"
 
 namespace Physics {
+	struct TriggerEvent
+	{
+		Particle* particles[2] = { nullptr, nullptr };
+	};
+
 	class PhysicsWorld
 	{
 		public:
@@ -18,6 +23,7 @@ namespace Physics {
 			std::list<ParticleLink*> Links;
 			std::vector<ParticleContact*> Contacts;
 			std::vector<ParticleContact*> GetContacts() { return Contacts; }
+			const std::vector<TriggerEvent>& GetTriggerEvents() const { return TriggerEvents; }
 			std::list<Chain*> Chains;
 			std::list<Cable*> Cables;
 
@@ -27,6 +33,7 @@ namespace Physics {
 			void ModifyGravity(float force);
 
 		private:
+			std::vector<TriggerEvent> TriggerEvents;
 			void UpdateParticleList();
 			void GenerateContacts();
 			void GetOverlaps();

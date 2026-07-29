@@ -3,6 +3,10 @@ using namespace std;
 using namespace Physics;
 
 ParticleContact* Rod::GetContact() {
+	if (particles.size() < 2 || !particles[0]->isActive || !particles[1]->isActive) {
+		return nullptr;
+	}
+
 	float currLen = CurrentLength();
 	if (currLen == length) {
 		return nullptr;
