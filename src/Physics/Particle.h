@@ -15,6 +15,7 @@ namespace Physics{
 
 			void UpdatePosition(float deltaTime);
 			void UpdateVelocity(float deltaTime);
+			virtual void UpdateAngularVelocity(float deltaTime);
 
 			glm::vec3 accumulatedForce = glm::vec3(0.f, 0.f, 0.f);
 			glm::vec3 accumulatedTorque = glm::vec3(0.f, 0.f, 0.f);
@@ -32,6 +33,7 @@ namespace Physics{
 			glm::vec3 Velocity;
 			glm::vec3 Acceleration;
 			glm::vec3 Rotation = glm::vec3(0.f, 0.f, 0.f);
+			float rot = 0.f;
 			float Lifespan;
 			float damping = 0.9f;
 			float mass = 1.f; //kg

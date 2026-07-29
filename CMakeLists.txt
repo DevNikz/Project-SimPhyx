@@ -55,7 +55,9 @@ set(PHYS_SOURCES
 	${PHYS_DIR}/Particle.cpp
 	${PHYS_DIR}/Particle.h
 	${PHYS_DIR}/PhysicsWorld.cpp
-	${PHYS_DIR}/PhysicsWorld.h)
+	${PHYS_DIR}/PhysicsWorld.h
+	${PHYS_DIR}/PhysicsCube.cpp
+	${PHYS_DIR}/PhysicsCube.h)
 
 # SPRINGS
 set(SPRINGS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Spring")

@@ -17,7 +17,10 @@ namespace Physics {
 		this->Acceleration += accumulatedForce * (1 / d_mass);
 		this->Velocity = this->Velocity + (this->Acceleration * deltaTime);
 		this->Velocity = this->Velocity * powf(damping, deltaTime);
+	}
 
+	void Particle::UpdateAngularVelocity(float deltaTime)
+	{
 		float mI = MomentOfInertia();
 		AngularVelocity += accumulatedTorque * deltaTime * (1.f / mI);
 		AngularVelocity = AngularVelocity * powf(AngularDampening, deltaTime);
@@ -47,6 +50,7 @@ namespace Physics {
 	{
 		this->UpdatePosition(time);
 		this->UpdateVelocity(time);
+		this->UpdateAngularVelocity(time);
 		this->ResetForce();
 	}
 
