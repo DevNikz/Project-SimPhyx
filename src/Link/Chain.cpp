@@ -39,6 +39,7 @@ vector<ParticleContact*> Chain::GetContacts() const {
 
 		Particle* a = particles[i];
 		Particle* b = particles[i+1];
+		if (!a->isActive || !b->isActive) continue;
 
 		float currLen = SegmentLength(i);
 		if (currLen == length) continue;

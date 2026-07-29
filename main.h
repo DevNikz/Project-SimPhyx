@@ -32,6 +32,7 @@
 #include "Line.h"
 #include "src/Input/PlayerController.h"
 #include "src/Input/PlayerInput.h"
+#include "src/Environment/EnvironmentChunk.h"
 
 using namespace std;
 using namespace Physics;

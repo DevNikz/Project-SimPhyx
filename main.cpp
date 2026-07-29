@@ -476,7 +476,7 @@ void DisplayMenu() {
     cin >> spinForceMag;
 }
 
-void ShowFPSOverlay(bool* p_open, PlayerController p) {
+void ShowFPSOverlay(bool* p_open, PlayerController p, int goldCollected, bool gameOver) {
     static int corner = 0;
     ImGuiIO& io = ImGui::GetIO();
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration
@@ -511,6 +511,11 @@ void ShowFPSOverlay(bool* p_open, PlayerController p) {
 
         ImGui::SeparatorText("Player");
         ImGui::Text("Grounded: %d", p.isGrounded);
+        ImGui::Text("Gold: %d", goldCollected);
+        if (gameOver) {
+            ImGui::SeparatorText("Game Over");
+            ImGui::Text("Press R to restart");
+        }
         /*ImGui::Text("Braking: %d", braking);
         ImGui::Text("Stopped: %d", stopped);
         ImGui::Text("Speed: %.2f", hp->AngularVelocity.z);*/
@@ -656,7 +661,6 @@ int main(void)
     Shader spriteShader("Shaders/spriteShader.vert", "Shaders/spriteShader.frag");
 
     std::list<RenderParticle*> RenderParticles;
-    std::list<RenderParticle*> envRender;
     auto pWorld = std::make_unique<PhysicsWorld>();
     float edge = 450.f; //edge of the window
 
@@ -683,6 +687,7 @@ int main(void)
     mainCharRB->halfExtents = glm::vec3(mainCharRB->width * 0.8, mainCharRB->height * 0.8, 0.f);
     mainCharRB->SetPrimitive(Rect);
     mainCharRB->useGravity = true; //debug
+    mainCharRB->collisionLayer = Physics::CollisionPlayer;
     player.particle = mainCharRB.get();
 
     RenderParticle* charRender = new RenderParticle(mainCharRB.get(), &owlet);
@@ -701,114 +706,26 @@ int main(void)
     back.setPosition(glm::vec3(0.0f, 50.f, 0.0f));
     back.setScale(glm::vec2(384 * scaleX, 240 * scaleY)); // powers of 32
 
-    //FLOOR
-    scaleX = 100000;
-    scaleY = 1;
-    Quad grassFloor({ scaleX, scaleY });
-    grassFloor.IsTiled(true);
-    grassFloor.setShader(&spriteShader);
-    grassFloor.loadTexture("3D/env/ground.png", 1, 1);
-    grassFloor.setPosition(glm::vec3(0.0f, -250.0f, 0.0f));
-    grassFloor.setScale(glm::vec2(32 * scaleX, 32 * scaleY)); // powers of 32
+    constexpr float CHUNK_WIDTH = 1024.0f;
+    constexpr int CHUNK_COUNT = 5;
+    constexpr float FLOOR_Y = -250.0f;
+    constexpr float PLAYER_SCREEN_OFFSET = 250.0f;
 
-    //Rectangle Rigidbody
-    auto floor = std::make_unique<Particle>();
-    floor->Position = grassFloor.getPosition();
-    floor->mass = 1000000000000000.f;
-    floor->restitution = 0.f;
-    floor->width = 32 * scaleX;
-    floor->height = 32 * scaleY;
-    floor->extents = glm::vec3(floor->width, floor->height, 0.f);
-    floor->halfExtents = glm::vec3(floor->width * 0.5, floor->height * 0.5, 0.f);
-    floor->SetPrimitive(Rect);
-    floor->useGravity = false; //debug
+    std::vector<std::unique_ptr<EnvironmentChunk>> environmentChunks;
+    environmentChunks.reserve(CHUNK_COUNT);
+    for (int i = 0; i < CHUNK_COUNT; ++i) {
+        const float centerX = (i - CHUNK_COUNT / 2) * CHUNK_WIDTH;
+        environmentChunks.push_back(std::make_unique<EnvironmentChunk>(
+            centerX,
+            CHUNK_WIDTH,
+            FLOOR_Y,
+            -START_VIEW_HALF_HEIGHT,
+            &spriteShader,
+            pWorld.get()));
+    }
+    int goldCollected = 0;
 
-    //Render
-    RenderParticle* rp1 = new RenderParticle(floor.get(), &grassFloor);
-    envRender.push_back(rp1);
-
-    //Ground Mid
-    scaleX = 100000;
-    scaleY = 10;
-    float floorY = -250.0f;
-    float floorHalfHeight = (32 * 1) / 2.0f;
-    float groundHalfHeight = (32 * scaleY) / 2.0f;
-    float groundY = floorY - floorHalfHeight - groundHalfHeight;
-
-    Quad ground({ scaleX, scaleY });
-    ground.IsTiled(true);
-    ground.setShader(&spriteShader);
-    ground.loadTexture("3D/env/ground1.png", 1, 1);
-    ground.setPosition(glm::vec3(0.0f, groundY, 0.0f));
-    ground.setScale(glm::vec2(32 * scaleX, 32 * scaleY)); // powers of 32
-
-    //Bottom Ground
-    scaleX = 100000;
-    scaleY = 1;
-    Quad bottomGround({ scaleX, scaleY });
-    bottomGround.IsTiled(true);
-    bottomGround.setShader(&spriteShader);
-    bottomGround.loadTexture("3D/env/ground2.png", 1, 1);
-
-    float groundHeight = 32 * scaleY;
-    groundY = (-windowHeight * .65f) + (groundHeight / 2.0f);
-    bottomGround.setPosition(glm::vec3(0.0f, groundY, 0.0f));
-    bottomGround.setScale(glm::vec2(32 * scaleX, groundHeight)); // powers of 32
-
-    //Left
-    Quad left({ 1, 1 });
-    left.IsTiled(false);
-    left.setShader(&spriteShader);
-    left.loadWhiteTexture();
-    left.setColor(glm::vec3(1.f), 0.f);
-    left.setPosition(glm::vec3(-START_VIEW_HALF_HEIGHT, 0.f, 0.f));
-    left.setScale(glm::vec2(10, 1500.f)); // powers of 32
-
-    //Left Side Screen Rigidbody
-    auto leftSide = std::make_unique<Particle>();
-    leftSide->Position = left.getPosition();
-    leftSide->mass = 1000000000000000.f;
-    leftSide->restitution = 0.f;
-    leftSide->width = left.getScale().x;
-    leftSide->height = left.getScale().y;
-    leftSide->extents = glm::vec3(leftSide->width, leftSide->height, 0.f);
-    leftSide->halfExtents = glm::vec3(leftSide->width * 0.5, leftSide->height * 0.5, 0.f);
-    leftSide->SetPrimitive(Rect);
-    leftSide->useGravity = false; //debug
-
-    //Render
-    RenderParticle* rp3 = new RenderParticle(leftSide.get(), &left);
-    envRender.push_back(rp3);
-
-    //Right
-    Quad right({ 1, 1 });
-    right.IsTiled(false);
-    right.setShader(&spriteShader);
-    right.loadWhiteTexture();
-    right.setColor(glm::vec3(1.f), 0.f);
-    right.setPosition(glm::vec3(START_VIEW_HALF_HEIGHT, 0.f, 0.f));
-    right.setScale(glm::vec2(10, 1500.f)); // powers of 32
-
-    //Left Side Screen Rigidbody
-    auto rightSide = std::make_unique<Particle>();
-    rightSide->Position = right.getPosition();
-    rightSide->mass = 1000000000000000.f;
-    rightSide->restitution = 0.f;
-    rightSide->width = right.getScale().x;
-    rightSide->height = right.getScale().y;
-    rightSide->extents = glm::vec3(rightSide->width, rightSide->height, 0.f);
-    rightSide->halfExtents = glm::vec3(rightSide->width * 0.5, rightSide->height * 0.5, 0.f);
-    rightSide->SetPrimitive(Rect);
-    rightSide->useGravity = false; //debug
-
-    //Render
-    RenderParticle* rp4 = new RenderParticle(rightSide.get(), &right);
-    envRender.push_back(rp4);
-
-    pWorld->AddParticle(floor.get());
     pWorld->AddParticle(mainCharRB.get());
-    pWorld->AddParticle(leftSide.get());
-    pWorld->AddParticle(rightSide.get());
 
     //std::vector<unique_ptr<Particle>> rouletteParticles;
     //std::vector<unique_ptr<Line>> Lines;
@@ -868,14 +785,44 @@ int main(void)
     auto curr_time = clock::now();
     auto prev_time = curr_time;
     std::chrono::nanoseconds curr_ns(0);
+    bool gameOver = false;
+    bool restartWasDown = false;
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         //Normal Update
         processInput(window);
+
+        const bool restartDown = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
+        if (gameOver && restartDown && !restartWasDown) {
+            gameOver = false;
+            simulationPaused = false;
+            goldCollected = 0;
+            curr_ns = std::chrono::nanoseconds(0);
+
+            player.particle->Position = glm::vec3(-edge, 0.0f, 0.0f);
+            player.particle->Velocity = glm::vec3(0.0f);
+            player.particle->Acceleration = glm::vec3(0.0f);
+            player.particle->ResetForce();
+            player.isGrounded = false;
+
+            for (int i = 0; i < CHUNK_COUNT; ++i) {
+                environmentChunks[i]->SetCenterX(
+                    (i - CHUNK_COUNT / 2) * CHUNK_WIDTH);
+            }
+        }
+        restartWasDown = restartDown;
+
         UpdatePlayerInput(window, input);
-        player.HandleInput(input, deltaTime);
+        if (!gameOver) {
+            player.HandleInput(input, deltaTime);
+        }
+        else {
+            input.moveDir = glm::vec2(0.0f);
+            input.jumpPressed = false;
+            input.jumpHeld = false;
+        }
 
         //moveDir.x = 0.1f;
         bool isMoving = glm::length(input.moveDir) > 0.001f;
@@ -883,13 +830,45 @@ int main(void)
 
         float facingScale = input.facingLeft ? -1.0f : 1.0f;
         charRender->facingScale = facingScale;
-        player.particle->Update(deltaTime);
+        if (!gameOver)
+            player.particle->Update(deltaTime);
 
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
         prev_time = curr_time;
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
+
+        // Keep the player toward the left side of the view while preserving
+        // the existing input-driven player movement.
+        orthoCam.Position.x = player.particle->Position.x + PLAYER_SCREEN_OFFSET;
+        back.setPosition(glm::vec3(orthoCam.Position.x, 50.0f, 0.0f));
+
+        // Reuse the fixed chunk pool in either direction. Moving colliders
+        // instead of allocating new ones keeps the endless level bounded.
+        float leftmostCenter = environmentChunks.front()->GetCenterX();
+        float rightmostCenter = leftmostCenter;
+        for (const auto& chunk : environmentChunks) {
+            leftmostCenter = std::min(leftmostCenter, chunk->GetCenterX());
+            rightmostCenter = std::max(rightmostCenter, chunk->GetCenterX());
+        }
+
+        const float recycleLeft =
+            orthoCam.Position.x - START_VIEW_HALF_HEIGHT - CHUNK_WIDTH;
+        const float recycleRight =
+            orthoCam.Position.x + START_VIEW_HALF_HEIGHT + CHUNK_WIDTH;
+
+        for (auto& chunk : environmentChunks) {
+            const float halfWidth = chunk->GetWidth() * 0.5f;
+            if (chunk->GetCenterX() + halfWidth < recycleLeft) {
+                rightmostCenter += CHUNK_WIDTH;
+                chunk->SetCenterX(rightmostCenter);
+            }
+            else if (chunk->GetCenterX() - halfWidth > recycleRight) {
+                leftmostCenter -= CHUNK_WIDTH;
+                chunk->SetCenterX(leftmostCenter);
+            }
+        }
 
         float groundedTimer = 0.0f;
         float groundedGraceTime = 0.1f;
@@ -904,6 +883,31 @@ int main(void)
 
                 //Physics Update
                 pWorld->Update(timestep_sec);
+
+                for (const Physics::TriggerEvent& event : pWorld->GetTriggerEvents()) {
+                    Physics::Particle* otherParticle = nullptr;
+                    if (event.particles[0] == player.particle)
+                        otherParticle = event.particles[1];
+                    else if (event.particles[1] == player.particle)
+                        otherParticle = event.particles[0];
+
+                    if (otherParticle == nullptr)
+                        continue;
+
+                    if (otherParticle->collisionLayer == Physics::CollisionCollectible) {
+                        for (auto& chunk : environmentChunks) {
+                            if (chunk->CollectCoin(otherParticle)) {
+                                ++goldCollected;
+                                break;
+                            }
+                        }
+                    }
+                    else if (otherParticle->collisionLayer == Physics::CollisionHazard) {
+                        gameOver = true;
+                        simulationPaused = true;
+                        player.particle->Velocity = glm::vec3(0.0f);
+                    }
+                }
 
                 bool groundedThisFrame = CheckGrounded(player.particle, pWorld->GetContacts(), 0.5f);
                 
@@ -960,11 +964,9 @@ int main(void)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
         //Draw Environment
-        for (auto* env : envRender) {
-            env->DrawSprite();
+        for (const auto& chunk : environmentChunks) {
+            chunk->Draw();
         }
-        ground.draw();
-        bottomGround.draw();
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
 
@@ -974,7 +976,7 @@ int main(void)
         ImGui::NewFrame();
         static bool show_overlay = true;
         if (show_overlay) {
-            ShowFPSOverlay(&show_overlay, player);
+            ShowFPSOverlay(&show_overlay, player, goldCollected, gameOver);
         }
 
         ImGui::Render();
@@ -1004,7 +1006,8 @@ int main(void)
     hubModel->DeleteBuffers();
     //for (auto& l : lines) l->DeleteBuffers();
     owlet.DeleteBuffers();
-    grassFloor.DeleteBuffers();
+    back.DeleteBuffers();
+    environmentChunks.clear();
     
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

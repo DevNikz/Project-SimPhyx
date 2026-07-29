@@ -103,6 +103,12 @@ set(INPUT_SOURCES
 	${INPUT_DIR}/PlayerController.h
 	${INPUT_DIR}/PlayerInput.h)
 
+# ENVIRONMENT
+set(ENVIRONMENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Environment")
+set(ENVIRONMENT_SOURCES
+	${ENVIRONMENT_DIR}/EnvironmentChunk.cpp
+	${ENVIRONMENT_DIR}/EnvironmentChunk.h)
+
 #imgui
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/imgui")
 set(IMGUI_SOURCES 
@@ -150,7 +156,7 @@ find_package(OpenGL REQUIRED)
 add_executable (Project-SimPhyx ${MAIN_SRC} ${GLAD_SRC} ${BASE_SOURCES} ${PHYS_SOURCES}
 				 ${SPRINGS_SOURCES} ${LINK_SOURCES} ${CONTACTS_SOURCES} ${MISC_SOURCES}
 				 ${CABLE_SOURCES} ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES}
-				 ${INPUT_SOURCES})
+				 ${INPUT_SOURCES} ${ENVIRONMENT_SOURCES})
 
 target_include_directories(Project-SimPhyx PRIVATE
     ${glfw_SOURCE_DIR}/include

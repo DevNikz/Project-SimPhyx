@@ -26,6 +26,7 @@ namespace Physics {
 		for (std::list<ParticleForceRegistry>::iterator i = Registry.begin();
 			i != Registry.end();
 			i++) {
+			if (!i->particle->isActive) continue;
 			i->generator->UpdateForce(i->particle, time);
 		}
 	}

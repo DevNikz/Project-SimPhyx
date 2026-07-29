@@ -8,6 +8,16 @@ enum PrimitiveType {
 };
 
 namespace Physics{
+	enum CollisionLayer : unsigned int {
+		CollisionNone = 0,
+		CollisionDefault = 1u << 0,
+		CollisionPlayer = 1u << 1,
+		CollisionWorld = 1u << 2,
+		CollisionCollectible = 1u << 3,
+		CollisionHazard = 1u << 4,
+		CollisionAll = 0xFFFFFFFFu
+	};
+
 	class Particle 
 	{
 		protected:
@@ -38,6 +48,10 @@ namespace Physics{
 			float radius = 1.f;
 			float restitution = 0.f;
 			bool useGravity = true;
+			bool isTrigger = false;
+			bool isActive = true;
+			unsigned int collisionLayer = CollisionDefault;
+			unsigned int collisionMask = CollisionAll;
 			glm::vec3 halfExtents;
 			float width = 0.f;
 			float height = 0.f;
