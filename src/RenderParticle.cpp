@@ -100,3 +100,7 @@ void Physics::RenderParticle::DrawSprite()
 	RenderSprite->setFacingScale(facingScale);
 	RenderSprite->draw();
 }
+
+void RenderParticle::SetColor(glm::vec3 color) {
+	RenderSprite->setColor(color);
+}

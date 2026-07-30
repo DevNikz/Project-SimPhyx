@@ -133,7 +133,7 @@ namespace Physics {
 					}
 				}
 				else if ((*a)->GetShape() == Rect && (*b)->GetShape() == Rect) {
-					float skin = 5.0f; // small tolerance, tune to your world scale
+					float skin = 0.5f; // small tolerance, tune to your world scale
 					glm::vec3 delta = (*a)->Position - (*b)->Position;  // a minus b, matches circle branch
 					glm::vec3 overlap = ((*a)->halfExtents + (*b)->halfExtents) - glm::abs(delta);
 

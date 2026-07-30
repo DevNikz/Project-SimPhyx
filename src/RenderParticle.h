@@ -41,6 +41,8 @@ namespace Physics {
 
 		void DrawSprite();
 
+		void SetColor(glm::vec3 color);
+
 		Quad* quad() { return RenderSprite; }
 		const Quad* quad() const { return RenderSprite; }
 		const std::string& currentClip() const { return m_currentClipName; }

@@ -505,9 +505,15 @@ void ShowFPSOverlay(bool* p_open, PlayerController p, int goldCollected, bool ga
 
     if (ImGui::Begin("FPS Overlay", p_open, windowFlags)) {
 
-        ImGui::SeparatorText("Debug");
+        /*ImGui::SeparatorText("Debug");
         ImGui::Text("FPS: %.1f", io.Framerate);
-        ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);
+        ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);*/
+        ImGui::SeparatorText("Debug");
+        ImGui::Text("Player Speed: %.5f", p.charSpeed);
+
+        ImGui::SeparatorText("Controls");
+        ImGui::Text("WASD to Move");
+        ImGui::Text("SPACE to Jump");
 
         ImGui::SeparatorText("Player");
         ImGui::Text("Grounded: %d", p.isGrounded);
@@ -554,30 +560,11 @@ void ShowFPSOverlay(bool* p_open, PlayerController p, int goldCollected, bool ga
     ImGui::End();
 }
 
-
-
 void processInput(GLFWwindow* window)
 {
-    //static bool onePress = false;
-    //static bool twoPress = false;
-    //static bool fPress = false;
-    //static bool spacePressed = false;
-    //static int lightIntensity = 0;
-    //static CameraType prevMode = ORTHOGRAPHIC;
-
-    //const float lightIntensities[] = { 2.5f, 5.f, 7.5f };
-
-    //const float moveSpeed = 20.f;
-    //const float turnSpeed = 90.f;
-
-    //const float fpTurnSpeed = 60.f;
-    //const float fpMoveSpeed = 10.f;
-
-    //const float panSpeed = 20.f;
-
-    //Exit Game
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
+    ////Exit Game
+    //if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    //    glfwSetWindowShouldClose(window, true);
 
     //Play/pause sim
     //bool spaceDown = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
@@ -592,15 +579,12 @@ void processInput(GLFWwindow* window)
     //}
 
     //Ortho or perspective
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
-        cameraType = ORTHOGRAPHIC;
-    }
+    //if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+    //    cameraType = ORTHOGRAPHIC;
+    //}
 
-    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
-        cameraType = PERSPECTIVE;
-
-    //Orbit cam
-    const float orbitSpeed = 60.f;
+    //if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+    //    cameraType = PERSPECTIVE;
 }
 
 //MAIN
@@ -608,6 +592,7 @@ int main(void)
 {
     PlayerInput input;
     PlayerController player;
+    player.SetSpeed(1.f);
 
     //60fps Physics Update
     constexpr std::chrono::nanoseconds timestep(16666666);
@@ -619,7 +604,7 @@ int main(void)
     /* Create a windowed mode window and its OpenGL context */
     glfwWindowHint(GLFW_SAMPLES, 8);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, "PC02 Ragudo", NULL, NULL);
+    window = glfwCreateWindow(windowWidth, windowHeight, "Project SimPhyx (PHASE 3)", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -668,23 +653,25 @@ int main(void)
     auto sphereModel = std::make_unique<Model>("sphere", "", &unlit);
     auto hubModel = std::make_unique<Model>("sphere", "", &unlit);
 
-    pWorld->ModifyGravity(50.f);
+    pWorld->ModifyGravity(100.f);
 
     //MAIN CHARACTER
+    int scaleX = 3;
+    int scaleY = 3;
     Quad owlet({1, 1});
     owlet.setShader(&spriteShader);
     owlet.loadTexture("3D/char/Owlet_Monster_Idle_4.png", /*sheetColumns=*/4, /*sheetRows=*/1);
-    owlet.setScale(glm::vec2(32 * 2, 32 * 2)); // pixel-art sprite, scaled up
+    owlet.setScale(glm::vec2(32 * scaleX, 32 * scaleY)); // pixel-art sprite, scaled up
 
     //Rectangle Rigidbody
     auto mainCharRB = std::make_unique<Particle>();
     mainCharRB->Position = glm::vec3(-edge, 0.0f, 0.0f);
-    mainCharRB->mass = 1.f;
+    mainCharRB->mass = 10.f;
     mainCharRB->restitution = 0.f;
-    mainCharRB->width = 32;
-    mainCharRB->height = 32;
+    mainCharRB->width = 32 * scaleX;
+    mainCharRB->height = 32 * scaleY;
     mainCharRB->extents = glm::vec3(mainCharRB->width, mainCharRB->height, 0.f);
-    mainCharRB->halfExtents = glm::vec3(mainCharRB->width * 0.8, mainCharRB->height * 0.8, 0.f);
+    mainCharRB->halfExtents = glm::vec3(mainCharRB->width * 0.5, mainCharRB->height * 0.5, 0.f);
     mainCharRB->SetPrimitive(Rect);
     mainCharRB->useGravity = true; //debug
     mainCharRB->collisionLayer = Physics::CollisionPlayer;
@@ -693,11 +680,14 @@ int main(void)
     RenderParticle* charRender = new RenderParticle(mainCharRB.get(), &owlet);
     charRender->addClip("idle", "3D/char/Owlet_Monster_Idle_4.png", 4, 1, 4, 0.15f);
     charRender->addClip("run", "3D/char/Owlet_Monster_Run_6.png", 6, 1, 6, 0.10f);
+    charRender->addClip("jump", "3D/char/Owlet_Monster_Jump_8.png", 8, 1, 8, 0.75f);
     playerP = mainCharRB.get();
+    charRender->play("run");
+    charRender->facingScale = 1.0f;
 
     //Back
-    int scaleX = 4.5;
-    int scaleY = 4.5;
+    scaleX = 4.5;
+    scaleY = 4.5;
     Quad back({ 1, 1 });
     back.IsTiled(true);
     back.setShader(&spriteShader);
@@ -727,48 +717,6 @@ int main(void)
 
     pWorld->AddParticle(mainCharRB.get());
 
-    //std::vector<unique_ptr<Particle>> rouletteParticles;
-    //std::vector<unique_ptr<Line>> Lines;
-    //std::vector<LineConfig> renderLines;
-
-    //HUB
-    //auto hp = std::make_unique<Particle>();
-    //hp->Position = glm::vec3(0.f, 0.f, 0.f);
-    //hp->mass = 10.0f;
-    //hp->restitution = rest;
-    //hp->radius = wheelRad;
-    //hp->useGravity = false;
-
-    //RenderParticle* rp = new RenderParticle(hp.get(), hubModel.get(), glm::vec3(0.25f, 0.f, 0.f), glm::vec3(wheelRad));
-    //mRender.push_back(rp);
-    //pWorld->AddParticle(hp.get());
-
-    ////Center Particle
-    //hubParticle = hp.get();
-
-    //Spawn Particles
-    /*
-    for (int i = 0; i < 5; i++) {
-        auto p = std::make_unique<Particle>();
-        p->Position = glm::vec3(0.f, 0.f, 1.f);
-        p->Rotation = glm::vec3(0.f);
-        p->mass = mass;
-        p->radius = particleRadius * 0.5f;
-        p->useGravity = false;
-
-        float angleRad = glm::radians(particles[i].angleOffsetDeg) + p->Rotation.z;
-        p->Position = p->Position + mainWheelOrbitRad * glm::vec3(cosf(angleRad), sinf(angleRad), 0.f);
-        
-
-        RenderParticle* rp = new RenderParticle(p.get(), sphereModel.get(), particles[i].color, glm::vec3(p->radius));
-        RenderParticles.push_back(rp);
-
-        auto l = std::make_unique<Line>(glm::vec3(0.f), p->Position, &lineShader);
-        rouletteParticles.push_back(move(p));
-        Lines.push_back(move(l));
-    }
-    */
-
     //IMGUI
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -791,20 +739,24 @@ int main(void)
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
-        //Normal Update
+        //Game Input
         processInput(window);
-
-        const bool restartDown = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
-        if (gameOver && restartDown && !restartWasDown) {
+        
+        //Player Input
+        UpdatePlayerInput(window, input);
+        if (!gameOver) {
+            player.HandleInput(input, deltaTime);
+        }
+        else if (gameOver && input.restartDown && !input.restartWasDown) {
             gameOver = false;
             simulationPaused = false;
             goldCollected = 0;
             curr_ns = std::chrono::nanoseconds(0);
-
             player.particle->Position = glm::vec3(-edge, 0.0f, 0.0f);
             player.particle->Velocity = glm::vec3(0.0f);
             player.particle->Acceleration = glm::vec3(0.0f);
             player.particle->ResetForce();
+            player.charSpeed = 1.f;
             player.isGrounded = false;
 
             for (int i = 0; i < CHUNK_COUNT; ++i) {
@@ -812,33 +764,35 @@ int main(void)
                     (i - CHUNK_COUNT / 2) * CHUNK_WIDTH);
             }
         }
-        restartWasDown = restartDown;
-
-        UpdatePlayerInput(window, input);
-        if (!gameOver) {
-            player.HandleInput(input, deltaTime);
-        }
-        else {
+        else //GAMEOVER 
+        {
             input.moveDir = glm::vec2(0.0f);
             input.jumpPressed = false;
             input.jumpHeld = false;
         }
+        input.restartWasDown = input.restartDown;
 
-        //moveDir.x = 0.1f;
-        bool isMoving = glm::length(input.moveDir) > 0.001f;
-        charRender->play(isMoving ? "run" : "idle"); // no-op if already playing
+        //Animation
+        bool isMoving = glm::length(player.charSpeed) > 0.001f;
+        if (!input.jumpPressed && player.isGrounded == true) charRender->play(isMoving ? "run" : "idle"); // no-op if already playing
+        else charRender->play("jump");
+        //bool hasJumped = input.jumpPressed && player.isGrounded == false;
+        //charRender->play(hasJumped ? "jump" : "run");
+        
 
-        float facingScale = input.facingLeft ? -1.0f : 1.0f;
-        charRender->facingScale = facingScale;
-        if (!gameOver)
-            player.particle->Update(deltaTime);
+        //float facingScale = input.facingLeft ? -1.0f : 1.0f;
+        
+        /*if (!gameOver)
+            player.particle->Update(deltaTime);*/
 
+        //Physics Update
         curr_time = clock::now();
         auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
         prev_time = curr_time;
         float framesec = dur.count() / 1E09f;
         deltaTime = framesec;
 
+        //Collision
         // Keep the player toward the left side of the view while preserving
         // the existing input-driven player movement.
         orthoCam.Position.x = player.particle->Position.x + PLAYER_SCREEN_OFFSET;
@@ -873,67 +827,11 @@ int main(void)
         float groundedTimer = 0.0f;
         float groundedGraceTime = 0.1f;
 
-        //Spawn Particle per 0.025s tick | Spacebar for pasuing / resuming sim
-        if (!simulationPaused) {
-            //Physics Update Here
-            curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
-            if (curr_ns >= timestep) {
-                constexpr float timestep_sec = timestep.count() / (float)(1E09);
-                curr_ns -= timestep;
-
-                //Physics Update
-                pWorld->Update(timestep_sec);
-
-                for (const Physics::TriggerEvent& event : pWorld->GetTriggerEvents()) {
-                    Physics::Particle* otherParticle = nullptr;
-                    if (event.particles[0] == player.particle)
-                        otherParticle = event.particles[1];
-                    else if (event.particles[1] == player.particle)
-                        otherParticle = event.particles[0];
-
-                    if (otherParticle == nullptr)
-                        continue;
-
-                    if (otherParticle->collisionLayer == Physics::CollisionCollectible) {
-                        for (auto& chunk : environmentChunks) {
-                            if (chunk->CollectCoin(otherParticle)) {
-                                ++goldCollected;
-                                break;
-                            }
-                        }
-                    }
-                    else if (otherParticle->collisionLayer == Physics::CollisionHazard) {
-                        gameOver = true;
-                        simulationPaused = true;
-                        player.particle->Velocity = glm::vec3(0.0f);
-                    }
-                }
-
-                bool groundedThisFrame = CheckGrounded(player.particle, pWorld->GetContacts(), 0.5f);
-                
-                if (groundedThisFrame) {
-                    groundedTimer = groundedGraceTime;
-                }
-                else {
-                    groundedTimer -= deltaTime;
-                }
-
-                player.isGrounded = groundedTimer > 0.0f;
-                
-            }
-        }
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        /* Render here */
 
         
 
-        //glDisable(GL_DEPTH_TEST);
-        ////Draw Particles.
-        //for (auto* rp : RenderParticles) {
-        //    rp->Draw();
-        //}
-        //glEnable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        /* Render here */
 
         spriteShader.use();
         if (cameraType == ORTHOGRAPHIC)
@@ -954,8 +852,16 @@ int main(void)
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        charRender->update(deltaTime); // animation update
+
+        if (!gameOver) {
+            charRender->update(deltaTime); // animation update
+            charRender->SetColor(glm::vec3(1.f));
+        }
+        else {
+            charRender->SetColor(glm::vec3(0.8f, 0.f, 0.f));
+        }
         charRender->DrawSprite();
+
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
 
@@ -1000,6 +906,57 @@ int main(void)
 
         /* Poll for and process events */
         glfwPollEvents();
+
+        //Physics Update
+        if (!simulationPaused) {
+            //Physics Update Here
+            curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
+            if (curr_ns >= timestep) {
+                constexpr float timestep_sec = timestep.count() / (float)(1E09);
+                curr_ns -= timestep;
+
+
+                //Physics Update
+                if (!gameOver) pWorld->Update(timestep_sec);
+
+                for (const Physics::TriggerEvent& event : pWorld->GetTriggerEvents()) {
+                    Physics::Particle* otherParticle = nullptr;
+                    if (event.particles[0] == player.particle)
+                        otherParticle = event.particles[1];
+                    else if (event.particles[1] == player.particle)
+                        otherParticle = event.particles[0];
+
+                    if (otherParticle == nullptr)
+                        continue;
+
+                    if (otherParticle->collisionLayer == Physics::CollisionCollectible) {
+                        for (auto& chunk : environmentChunks) {
+                            if (chunk->CollectCoin(otherParticle)) {
+                                ++goldCollected;
+                                break;
+                            }
+                        }
+                    }
+                    else if (otherParticle->collisionLayer == Physics::CollisionHazard) {
+                        gameOver = true;
+                        simulationPaused = true;
+                        player.particle->Velocity = glm::vec3(0.0f);
+                    }
+                }
+
+                bool groundedThisFrame = CheckGrounded(player.particle, pWorld->GetContacts(), 0.5f);
+
+                if (groundedThisFrame) {
+                    groundedTimer = groundedGraceTime;
+                }
+                else {
+                    groundedTimer -= deltaTime;
+                }
+
+                player.isGrounded = groundedTimer > 0.0f;
+
+            }
+        }
     }
 
     sphereModel->DeleteBuffers();

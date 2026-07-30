@@ -184,7 +184,7 @@ void EnvironmentChunk::SetupHazards(
     m_spikeHazard.sprite.setShader(spriteShader);
     m_spikeHazard.sprite.setTexture(
         Physics::Quad::LoadTextureCached("3D/env/spikes.png"), 1, 1);
-    m_spikeHazard.sprite.setScale(glm::vec2(SpikeWidth, SpikeHeight));
+    m_spikeHazard.sprite.setScale(glm::vec2(SpikeWidth, SpikeHeight)); //spike WIDTH x HEIGHT
 
     m_spikeHazard.leftParticle = std::make_unique<Physics::Particle>();
     m_spikeHazard.rightParticle = std::make_unique<Physics::Particle>();
@@ -194,7 +194,7 @@ void EnvironmentChunk::SetupHazards(
         particle->width = SpikeWidth * 0.5f;
         particle->height = 60.0f;
         particle->extents = glm::vec3(particle->width, particle->height, 0.0f);
-        particle->halfExtents = glm::vec3(particle->width * 0.5f, particle->height * 0.5f, 0.0f);
+        particle->halfExtents = glm::vec3(particle->width * 0.1f, particle->height * 0.2f, 0.0f);
         particle->SetPrimitive(Rect);
         particle->useGravity = false;
         particle->isTrigger = true;
