@@ -54,6 +54,9 @@ namespace Physics {
 
 	void PhysicsWorld::GenerateContacts()
 	{
+		for (ParticleContact* contact : Contacts) {
+			delete contact;
+		}
 		Contacts.clear();
 		TriggerEvents.clear();
 

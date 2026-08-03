@@ -139,14 +139,14 @@ void EnvironmentChunk::GenerateCoins()
     std::uniform_real_distribution<float> heightDistribution(90.0f, 260.0f);
     int nextCoin = 0;
 
-    // Generate one bunch in each half of the chunk so they do not overlap.
+    // Generate one bunch in each half of chunk so they dont overlap
     for (int bunch = 0; bunch < 2; ++bunch) {
         const float sectionCenter =
             -m_width * 0.25f + bunch * (m_width * 0.5f);
         const float height = heightDistribution(m_random);
 
         if (patternDistribution(m_random) == 0) {
-            // Horizontal row of three or four coins.
+            // Horizontal row of three or four coins
             const int coinCount = rowSizeDistribution(m_random);
             const float rowWidth = (coinCount - 1) * CoinSpacing;
             for (int i = 0; i < coinCount; ++i) {
@@ -156,7 +156,7 @@ void EnvironmentChunk::GenerateCoins()
             }
         }
         else {
-            // Two-by-two square.
+            // Two by two square
             ActivateCoin(nextCoin, glm::vec2(sectionCenter - CoinSpacing * 0.5f, height));
             ActivateCoin(nextCoin, glm::vec2(sectionCenter + CoinSpacing * 0.5f, height));
             ActivateCoin(nextCoin, glm::vec2(sectionCenter - CoinSpacing * 0.5f, height + CoinSpacing));
@@ -303,8 +303,8 @@ void EnvironmentChunk::ActivatePendulum(float centerX)
         anchorY - verticalOffset,
         0.0f);
     m_pendulumHazard.spikeBall->Position = glm::vec3(
-        centerX + horizontalOffset * 2.0f,
-        anchorY - verticalOffset * 2.0f,
+        centerX + horizontalOffset * 1.5f,
+        anchorY - verticalOffset * 1.5f,
         0.0f);
 
     m_pendulumHazard.anchor->isActive = true;

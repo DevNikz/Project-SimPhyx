@@ -9,7 +9,15 @@ float Cable::CurrentLength() {
 	return glm::length(particle->Position - anchorPoint);
 }
 
+void Cable::Attach(const glm::vec3& anchor, float length) {
+	anchorPoint = anchor;
+	cableLength = length;
+	active = true;
+}
+
 ParticleContact* Cable::GetContact() {
+	if (!active || !particle->isActive) return nullptr;
+
 	float currLen = CurrentLength();
 	if (currLen <= cableLength) return nullptr;
 

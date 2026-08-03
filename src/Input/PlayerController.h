@@ -8,21 +8,23 @@ public:
     Physics::Particle* particle;
 
     float moveSpeed = 150.0f;
-    float jumpVelocity = 300.0f;   // desired instantaneous upward speed on jump
+    float jumpVelocity = 250.0f;   // desired instantaneous upward speed on jump
     bool isGrounded = false;
-    float charSpeed = 1.f;
-    float modifier = 0.001f;
+    float charSpeed = 10.f;
+    float speedAcceleration = 0.5f;
 
-    void HandleInput(const PlayerInput& input, float deltaTime) {
+    void HandleInput(const PlayerInput& input, float deltaTime, bool isSwinging = false) {
         // Input Based
         //particle->Velocity.x = input.moveDir.x * moveSpeed;
 
         // Auto Move
-        charSpeed += modifier;
-        particle->Velocity.x = charSpeed * moveSpeed;
+        if (!isSwinging) {
+            charSpeed += speedAcceleration * deltaTime;
+            particle->Velocity.x = charSpeed * moveSpeed;
+        }
 
 
-        // --- Jump: force-based ---
+        // Apply the requested jump speed directly
         if (input.jumpPressed && isGrounded) {
             Jump(deltaTime);
         }

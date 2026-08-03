@@ -5,6 +5,7 @@
 #include "stb_image.h"
 #include <memory>
 #include <iomanip>
+#include <cmath>
 #include <imgui_impl_glfw.h>
 
 using namespace std;
@@ -505,15 +506,15 @@ void ShowFPSOverlay(bool* p_open, PlayerController p, int goldCollected, bool ga
 
     if (ImGui::Begin("FPS Overlay", p_open, windowFlags)) {
 
-        /*ImGui::SeparatorText("Debug");
-        ImGui::Text("FPS: %.1f", io.Framerate);
-        ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);*/
         ImGui::SeparatorText("Debug");
+        ImGui::Text("FPS: %.1f", io.Framerate);
+        ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);
         ImGui::Text("Player Speed: %.5f", p.charSpeed);
 
         ImGui::SeparatorText("Controls");
-        ImGui::Text("WASD to Move");
+        //ImGui::Text("WASD to Move");
         ImGui::Text("SPACE to Jump");
+        ImGui::Text("E to Swing");
 
         ImGui::SeparatorText("Player");
         ImGui::Text("Grounded: %d", p.isGrounded);
@@ -613,6 +614,7 @@ int main(void)
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
     gladLoadGL();
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -717,6 +719,14 @@ int main(void)
 
     pWorld->AddParticle(mainCharRB.get());
 
+    Cable playerSwingCable(mainCharRB.get(), glm::vec3(0.0f), 1.0f);
+    pWorld->Cables.push_back(&playerSwingCable);
+
+    Quad swingCableSprite(glm::vec2(1.0f));
+    swingCableSprite.setShader(&spriteShader);
+    swingCableSprite.setTexture(
+        Quad::LoadTextureCached("3D/env/chain.png"), 1, 1);
+
     //IMGUI
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -735,22 +745,43 @@ int main(void)
     std::chrono::nanoseconds curr_ns(0);
     bool gameOver = false;
     bool restartWasDown = false;
+    float groundedTimer = 0.0f;
+    constexpr float groundedGraceTime = 0.1f;
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
+        curr_time = clock::now();
+        auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
+        prev_time = curr_time;
+        deltaTime = dur.count() / 1E09f;
+
         //Game Input
         processInput(window);
         
         //Player Input
         UpdatePlayerInput(window, input);
         if (!gameOver) {
-            player.HandleInput(input, deltaTime);
+            if (input.swingPressed && !playerSwingCable.IsActive()) {
+                const glm::vec3 anchorPoint(
+                    player.particle->Position.x + 100.0f,
+                    100.0f,
+                    0.0f);
+                const float currentDistance = glm::length(
+                    player.particle->Position - anchorPoint);
+                playerSwingCable.Attach(anchorPoint, currentDistance * 0.92f);
+            }
+            else if (!input.swingHeld && playerSwingCable.IsActive()) {
+                playerSwingCable.Detach();
+            }
+
+            player.HandleInput(input, deltaTime, playerSwingCable.IsActive());
         }
         else if (gameOver && input.restartDown && !input.restartWasDown) {
             gameOver = false;
             simulationPaused = false;
             goldCollected = 0;
+            playerSwingCable.Detach();
             curr_ns = std::chrono::nanoseconds(0);
             player.particle->Position = glm::vec3(-edge, 0.0f, 0.0f);
             player.particle->Velocity = glm::vec3(0.0f);
@@ -758,6 +789,7 @@ int main(void)
             player.particle->ResetForce();
             player.charSpeed = 1.f;
             player.isGrounded = false;
+            groundedTimer = 0.0f;
 
             for (int i = 0; i < CHUNK_COUNT; ++i) {
                 environmentChunks[i]->SetCenterX(
@@ -769,6 +801,7 @@ int main(void)
             input.moveDir = glm::vec2(0.0f);
             input.jumpPressed = false;
             input.jumpHeld = false;
+            playerSwingCable.Detach();
         }
         input.restartWasDown = input.restartDown;
 
@@ -784,13 +817,6 @@ int main(void)
         
         /*if (!gameOver)
             player.particle->Update(deltaTime);*/
-
-        //Physics Update
-        curr_time = clock::now();
-        auto dur = std::chrono::duration_cast<std::chrono::nanoseconds>(curr_time - prev_time);
-        prev_time = curr_time;
-        float framesec = dur.count() / 1E09f;
-        deltaTime = framesec;
 
         //Collision
         // Keep the player toward the left side of the view while preserving
@@ -824,12 +850,6 @@ int main(void)
             }
         }
 
-        float groundedTimer = 0.0f;
-        float groundedGraceTime = 0.1f;
-
-
-        
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         /* Render here */
 
@@ -852,6 +872,21 @@ int main(void)
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        if (playerSwingCable.IsActive()) {
+            const glm::vec3 anchor = playerSwingCable.GetAnchorPoint();
+            const glm::vec3 playerPosition = player.particle->Position;
+            const glm::vec3 difference = playerPosition - anchor;
+            const glm::vec3 midpoint = (anchor + playerPosition) * 0.5f;
+            const float cableLength = glm::length(glm::vec2(difference));
+            const float cableAngle =
+                glm::degrees(std::atan2(difference.y, difference.x)) - 90.0f;
+
+            swingCableSprite.setPosition(midpoint);
+            swingCableSprite.setScale(glm::vec2(18.0f, cableLength));
+            swingCableSprite.setRotationDegrees(cableAngle);
+            swingCableSprite.draw();
+        }
 
         if (!gameOver) {
             charRender->update(deltaTime); // animation update
@@ -911,9 +946,11 @@ int main(void)
         if (!simulationPaused) {
             //Physics Update Here
             curr_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(dur);
-            if (curr_ns >= timestep) {
-                constexpr float timestep_sec = timestep.count() / (float)(1E09);
+            constexpr float timestep_sec = timestep.count() / (float)(1E09);
+            int physicsSteps = 0;
+            while (!simulationPaused && curr_ns >= timestep && physicsSteps < 5) {
                 curr_ns -= timestep;
+                ++physicsSteps;
 
 
                 //Physics Update
@@ -940,6 +977,7 @@ int main(void)
                     else if (otherParticle->collisionLayer == Physics::CollisionHazard) {
                         gameOver = true;
                         simulationPaused = true;
+                        playerSwingCable.Detach();
                         player.particle->Velocity = glm::vec3(0.0f);
                     }
                 }
@@ -950,7 +988,7 @@ int main(void)
                     groundedTimer = groundedGraceTime;
                 }
                 else {
-                    groundedTimer -= deltaTime;
+                    groundedTimer = glm::max(0.0f, groundedTimer - timestep_sec);
                 }
 
                 player.isGrounded = groundedTimer > 0.0f;
@@ -964,6 +1002,7 @@ int main(void)
     //for (auto& l : lines) l->DeleteBuffers();
     owlet.DeleteBuffers();
     back.DeleteBuffers();
+    swingCableSprite.DeleteBuffers();
     environmentChunks.clear();
     
     ImGui_ImplOpenGL3_Shutdown();

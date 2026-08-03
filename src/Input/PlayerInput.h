@@ -9,6 +9,8 @@ struct PlayerInput {
     bool facingLeft = false;
     bool restartDown = false;
     bool restartWasDown = false;
+    bool swingPressed = false;
+    bool swingHeld = false;
 
 private:
     bool jumpWasDown = false;   // internal state to detect edge press
@@ -42,5 +44,9 @@ inline void UpdatePlayerInput(GLFWwindow* window, PlayerInput& input) {
     input.jumpHeld = jumpDown;
 
     input.restartDown = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
+
+    bool swingDown = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
+    input.swingPressed = swingDown && !input.swingHeld;
+    input.swingHeld = swingDown;
     
 }
